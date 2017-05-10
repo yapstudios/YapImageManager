@@ -1,0 +1,412 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B51484ED1EBAB335008BAC3C /* Podfile in Resources */ = {isa = PBXBuildFile; fileRef = B51484EC1EBAB335008BAC3C /* Podfile */; };
+		B51485131EC38A0B008BAC3C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B514850D1EC38A0B008BAC3C /* Assets.xcassets */; };
+		B51485141EC38A0B008BAC3C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B514850E1EC38A0B008BAC3C /* LaunchScreen.storyboard */; };
+		B51485151EC38A0B008BAC3C /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B51485101EC38A0B008BAC3C /* Main.storyboard */; };
+		B51485161EC38A0B008BAC3C /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = B51485121EC38A0B008BAC3C /* Info.plist */; };
+		B514851A1EC38A32008BAC3C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51485171EC38A32008BAC3C /* AppDelegate.swift */; };
+		B514851B1EC38A32008BAC3C /* ImageCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51485181EC38A32008BAC3C /* ImageCell.swift */; };
+		B514851C1EC38A32008BAC3C /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51485191EC38A32008BAC3C /* ViewController.swift */; };
+		B514851E1EC38C55008BAC3C /* YapImageManager.podspec in Resources */ = {isa = PBXBuildFile; fileRef = B514851D1EC38C55008BAC3C /* YapImageManager.podspec */; };
+		CFFCEAC18543132F438CFF0C /* Pods_YapImageManagerExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F475EA4D5561CB8D28D122AC /* Pods_YapImageManagerExample.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		97268F81CB31B1B1B028DA2B /* Pods-YapImageManagerExample.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YapImageManagerExample.debug.xcconfig"; path = "Pods/Target Support Files/Pods-YapImageManagerExample/Pods-YapImageManagerExample.debug.xcconfig"; sourceTree = "<group>"; };
+		B51484C91EBAA562008BAC3C /* YapImageManagerExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YapImageManagerExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B51484EC1EBAB335008BAC3C /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; fileEncoding = 4; path = Podfile; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		B514850D1EC38A0B008BAC3C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B514850F1EC38A0B008BAC3C /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		B51485111EC38A0B008BAC3C /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		B51485121EC38A0B008BAC3C /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B51485171EC38A32008BAC3C /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Example/Source/AppDelegate.swift; sourceTree = "<group>"; };
+		B51485181EC38A32008BAC3C /* ImageCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ImageCell.swift; path = Example/Source/ImageCell.swift; sourceTree = "<group>"; };
+		B51485191EC38A32008BAC3C /* ViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ViewController.swift; path = Example/Source/ViewController.swift; sourceTree = "<group>"; };
+		B514851D1EC38C55008BAC3C /* YapImageManager.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; fileEncoding = 4; path = YapImageManager.podspec; sourceTree = "<group>"; };
+		D02DC0629ACD405A00BE4F3C /* Pods-YapImageManagerExample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YapImageManagerExample.release.xcconfig"; path = "Pods/Target Support Files/Pods-YapImageManagerExample/Pods-YapImageManagerExample.release.xcconfig"; sourceTree = "<group>"; };
+		F475EA4D5561CB8D28D122AC /* Pods_YapImageManagerExample.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_YapImageManagerExample.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B51484C61EBAA562008BAC3C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CFFCEAC18543132F438CFF0C /* Pods_YapImageManagerExample.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		882A99D3E475CD9BCEDCD507 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				97268F81CB31B1B1B028DA2B /* Pods-YapImageManagerExample.debug.xcconfig */,
+				D02DC0629ACD405A00BE4F3C /* Pods-YapImageManagerExample.release.xcconfig */,
+			);
+			name = Pods;
+			sourceTree = "<group>";
+		};
+		B51484C01EBAA562008BAC3C = {
+			isa = PBXGroup;
+			children = (
+				B514851D1EC38C55008BAC3C /* YapImageManager.podspec */,
+				B51484EC1EBAB335008BAC3C /* Podfile */,
+				B51485171EC38A32008BAC3C /* AppDelegate.swift */,
+				B51485191EC38A32008BAC3C /* ViewController.swift */,
+				B51485181EC38A32008BAC3C /* ImageCell.swift */,
+				B514850C1EC38A0B008BAC3C /* Resources */,
+				B51484CA1EBAA562008BAC3C /* Products */,
+				882A99D3E475CD9BCEDCD507 /* Pods */,
+				B921D4C5232B5D4643F85084 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		B51484CA1EBAA562008BAC3C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B51484C91EBAA562008BAC3C /* YapImageManagerExample.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B514850C1EC38A0B008BAC3C /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B514850D1EC38A0B008BAC3C /* Assets.xcassets */,
+				B514850E1EC38A0B008BAC3C /* LaunchScreen.storyboard */,
+				B51485101EC38A0B008BAC3C /* Main.storyboard */,
+				B51485121EC38A0B008BAC3C /* Info.plist */,
+			);
+			name = Resources;
+			path = Example/Resources;
+			sourceTree = "<group>";
+		};
+		B921D4C5232B5D4643F85084 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F475EA4D5561CB8D28D122AC /* Pods_YapImageManagerExample.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B51484C81EBAA562008BAC3C /* YapImageManagerExample */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B51484E61EBAA562008BAC3C /* Build configuration list for PBXNativeTarget "YapImageManagerExample" */;
+			buildPhases = (
+				EDE201478307BB728502D0B1 /* [CP] Check Pods Manifest.lock */,
+				B51484C51EBAA562008BAC3C /* Sources */,
+				B51484C61EBAA562008BAC3C /* Frameworks */,
+				B51484C71EBAA562008BAC3C /* Resources */,
+				216640E9ACD3E800CC85CA20 /* [CP] Embed Pods Frameworks */,
+				1739B78F8E4B86BD58FF25D3 /* [CP] Copy Pods Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = YapImageManagerExample;
+			productName = YapImageManager;
+			productReference = B51484C91EBAA562008BAC3C /* YapImageManagerExample.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B51484C11EBAA562008BAC3C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 0830;
+				LastUpgradeCheck = 0830;
+				ORGANIZATIONNAME = "Yap Studios";
+				TargetAttributes = {
+					B51484C81EBAA562008BAC3C = {
+						CreatedOnToolsVersion = 8.3.2;
+						DevelopmentTeam = 8JU59R7PAE;
+						LastSwiftMigration = 0830;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = B51484C41EBAA562008BAC3C /* Build configuration list for PBXProject "YapImageManagerExample" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B51484C01EBAA562008BAC3C;
+			productRefGroup = B51484CA1EBAA562008BAC3C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B51484C81EBAA562008BAC3C /* YapImageManagerExample */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B51484C71EBAA562008BAC3C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B51485141EC38A0B008BAC3C /* LaunchScreen.storyboard in Resources */,
+				B514851E1EC38C55008BAC3C /* YapImageManager.podspec in Resources */,
+				B51485131EC38A0B008BAC3C /* Assets.xcassets in Resources */,
+				B51484ED1EBAB335008BAC3C /* Podfile in Resources */,
+				B51485161EC38A0B008BAC3C /* Info.plist in Resources */,
+				B51485151EC38A0B008BAC3C /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		1739B78F8E4B86BD58FF25D3 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-YapImageManagerExample/Pods-YapImageManagerExample-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		216640E9ACD3E800CC85CA20 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-YapImageManagerExample/Pods-YapImageManagerExample-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		EDE201478307BB728502D0B1 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_ROOT}/../Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B51484C51EBAA562008BAC3C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B514851C1EC38A32008BAC3C /* ViewController.swift in Sources */,
+				B514851A1EC38A32008BAC3C /* AppDelegate.swift in Sources */,
+				B514851B1EC38A32008BAC3C /* ImageCell.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		B514850E1EC38A0B008BAC3C /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B514850F1EC38A0B008BAC3C /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		B51485101EC38A0B008BAC3C /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B51485111EC38A0B008BAC3C /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		B51484E41EBAA562008BAC3C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.3;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B51484E51EBAA562008BAC3C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.3;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		B51484E71EBAA562008BAC3C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 97268F81CB31B1B1B028DA2B /* Pods-YapImageManagerExample.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				DEVELOPMENT_TEAM = 8JU59R7PAE;
+				INFOPLIST_FILE = Example/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.yapstudios.appstore.YapImageManagerExample;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 3.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B51484E81EBAA562008BAC3C /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = D02DC0629ACD405A00BE4F3C /* Pods-YapImageManagerExample.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				DEVELOPMENT_TEAM = 8JU59R7PAE;
+				INFOPLIST_FILE = Example/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.yapstudios.appstore.YapImageManagerExample;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "";
+				SWIFT_VERSION = 3.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B51484C41EBAA562008BAC3C /* Build configuration list for PBXProject "YapImageManagerExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B51484E41EBAA562008BAC3C /* Debug */,
+				B51484E51EBAA562008BAC3C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B51484E61EBAA562008BAC3C /* Build configuration list for PBXNativeTarget "YapImageManagerExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B51484E71EBAA562008BAC3C /* Debug */,
+				B51484E81EBAA562008BAC3C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = B51484C11EBAA562008BAC3C /* Project object */;
+}
