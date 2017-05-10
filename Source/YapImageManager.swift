@@ -42,9 +42,9 @@ class ImageQueueItem: NSObject {
 }
 
 public class ImageRasterizationOptions: NSObject {
-  var backgroundColor: UIColor?
-  var isGradient: Bool = false
-  var isBevelEdge: Bool = false
+  public var backgroundColor: UIColor?
+  public var isGradient: Bool = false
+  public var isBevelEdge: Bool = false
   
   func key() -> String {
     var key = String()
