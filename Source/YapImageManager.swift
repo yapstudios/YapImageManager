@@ -42,19 +42,19 @@ class ImageQueueItem: NSObject {
 }
 
 public class ImageRasterizationOptions: NSObject {
-  public var backgroundColor: UIColor?
-  public var isGradient: Bool = false
-  public var isBevelEdge: Bool = false
+  public var renderBackgroundColor: UIColor?
+  public var renderGradient: Bool = false
+  public var renderOverlayImage: Bool = false
   
   func key() -> String {
     var key = String()
-    key += "\(isGradient ? "_G" : "")\(isBevelEdge ? "_B" : "")"
+    key += "\(renderGradient ? "_G" : "")\(renderOverlayImage ? "_B" : "")"
     var r = CGFloat(0.0)
     var g = CGFloat(0.0)
     var b = CGFloat(0.0)
     var a = CGFloat(0.0)
     
-    if backgroundColor != nil && backgroundColor!.getRed(&r, green: &g, blue: &b, alpha: &a) {
+    if renderBackgroundColor != nil && renderBackgroundColor!.getRed(&r, green: &g, blue: &b, alpha: &a) {
       key += String(format: "_C%0.5f%0.5f%0.5f%0.5f", r, g, b, a)
     }
     return key
@@ -88,6 +88,10 @@ public class YapImageManager: NSObject {
   private var isReachable: Bool = false
 
   fileprivate static let _sharedInstance = YapImageManager()
+  
+  /// Set to draw
+  public var overlayImage: UIImage?
+  
   public static func sharedInstance() -> YapImageManager {
     return _sharedInstance
   }
@@ -388,31 +392,33 @@ public class YapImageManager: NSObject {
   func aspectFillImage(forImage image: UIImage?, size: CGSize, options: ImageRasterizationOptions?) -> UIImage? {
     var aspectFillImage: UIImage?
     UIGraphicsBeginImageContextWithOptions(size, false, UIScreen.main.scale)
-    // draw the image, aspect fill
     let imageRect = CGRect(x: 0, y: 0, width: size.width, height: size.height)
     guard let context = UIGraphicsGetCurrentContext() else { return nil }
     
-    // draw the image aspect fill
+    // Add a clip rect for aspect fill
     context.addRect(imageRect)
     context.clip()
+    
     // Flip the context because UIKit coordinate system is upside down to Quartz coordinate system
     context.translateBy(x: 0.0, y: size.height)
     context.scaleBy(x: 1.0, y: -1.0)
-    // Draw the original image to the context
     context.setBlendMode(.normal)
-    // set interpolation quality
     context.interpolationQuality = .default
-    if let backgroundColor = options?.backgroundColor {
-      context.setFillColor(backgroundColor.cgColor)
+    
+    // Render the background color, if necessary
+    if let renderBackgroundColor = options?.renderBackgroundColor {
+      context.setFillColor(renderBackgroundColor.cgColor)
       context.fill(imageRect)
     }
+    
+    // Draw the image
     if let image = image, let cgImage = image.cgImage {
-      // Draw the image
       let aspectFillRect = aspectFillRectForImage(withSize: image.size, inRect: imageRect)
       context.draw(cgImage, in: aspectFillRect)
     }
-    // Draw the gradient
-    if options != nil && options!.isGradient {
+    
+    // Draw the gradient, if necessary
+    if options != nil && options!.renderGradient {
       let num_locations: size_t = 2
       let locations: [CGFloat] = [0.0, 1.0]
       let components: [CGFloat] = [
@@ -427,16 +433,16 @@ public class YapImageManager: NSObject {
         context.drawLinearGradient(gradient, start: top, end: bottom, options: [])
       }
     }
-    if options != nil && options!.isBevelEdge {
-      let overlay = UIImage(named: "tileShadow")?.resizableImage(withCapInsets: UIEdgeInsetsMake(4.0, 4.0, 4.0, 4.0))
-      if overlay != nil {
-        overlay?.draw(in: imageRect)
-      }
+    
+    // Render the overlay image, if necessary
+    if options != nil && options!.renderOverlayImage, let overlayImage = overlayImage {
+      overlayImage.draw(in: imageRect)
     }
+    
     // capture the image
     aspectFillImage = UIGraphicsGetImageFromCurrentImageContext()
     UIGraphicsEndImageContext()
-    return aspectFillImage!
+    return aspectFillImage
   }
   
   func aspectFillRectForImage(withSize size: CGSize, inRect rect: CGRect) -> CGRect {

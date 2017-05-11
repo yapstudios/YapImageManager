@@ -8,6 +8,7 @@
 
 import UIKit
 import CocoaLumberjack
+import YapImageManager
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -21,7 +22,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // Logging to Xcode's Console
     DDLog.add(DDTTYLogger.sharedInstance)
     defaultDebugLevel = .verbose
-    
+
+    YapImageManager.sharedInstance().overlayImage = UIImage(named: "tileShadow")?.resizableImage(withCapInsets: UIEdgeInsetsMake(4.0, 4.0, 4.0, 4.0))
+
 		return true
 	}
 

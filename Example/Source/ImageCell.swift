@@ -43,7 +43,9 @@ class ImageCell: UICollectionViewCell {
   }
   
   func loadImage(withURLString URLString: String) {
-    YapImageManager.sharedInstance().image(forURLString: URLString, size: self.bounds.size) { (image: UIImage?, URLString: String) in
+    let imageOptions = ImageRasterizationOptions()
+    imageOptions.renderOverlayImage = true
+    YapImageManager.sharedInstance().image(forURLString: URLString, size: self.bounds.size, options: imageOptions) { (image: UIImage?, URLString: String) in
       if let image = image, URLString == self.URLString {
         self.imageView.image = image
       }
