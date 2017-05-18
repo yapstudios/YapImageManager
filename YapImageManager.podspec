@@ -4,8 +4,15 @@ Pod::Spec.new do |s|
   s.summary      = "Yap Studios Image Manager Framework"
   s.homepage     = "http://yapstudios.com/"
   s.license      = 'MIT'
-  s.author       = { "Yap Studios" => "contact@yapstudios.com" }
-  s.source       = { :git => 'git@github.com:yapstudios/YapImageManager.git', :tag => s.version }
+
+	s.author = {
+		"Yap Studios" => "contact@yapstudios.com"
+	}
+
+  s.source = {
+		:git => 'git@github.com:yapstudios/YapImageManager.git',
+		:tag => s.version
+	}
 
   s.ios.deployment_target = '9.0'
   s.tvos.deployment_target = '10.0'
@@ -15,6 +22,6 @@ Pod::Spec.new do |s|
   
   s.dependency 'Alamofire', '4.4.0'
   s.dependency 'CocoaLumberjack/Swift', '3.1.0'
-  s.dependency 'YapDatabase'
+  s.dependency 'YapDatabase', '3.0'
   
 end

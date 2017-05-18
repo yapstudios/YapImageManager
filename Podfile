@@ -12,5 +12,4 @@ target 'YapImageManagerExample' do
 	pod 'AlamofireImage', '3.2.0'
 	pod 'PromiseKit/CorePromise', '4.1.7'
 	pod 'CocoaLumberjack/Swift', '3.1.0'
-	pod 'YapDatabase', :git => 'git@github.com:emoryalimam/YapDatabase.git', :commit => 'f137d9b'
 end
