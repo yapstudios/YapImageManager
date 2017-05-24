@@ -15,6 +15,10 @@ class ImageCell: UICollectionViewCell {
 
   var URLString: String? {
     didSet {
+			if oldValue != URLString, let ticket = self.ticket {
+				YapImageManager.sharedInstance().cancelImageRequest(forTicket: ticket)
+				self.ticket = nil
+			}
       if URLString == nil {
         imageView.image = nil
       } else if oldValue != URLString {
@@ -22,7 +26,9 @@ class ImageCell: UICollectionViewCell {
       }
     }
   }
-  
+	
+	private var ticket: ImageRequestTicket?
+	
   override init(frame: CGRect) {
     super.init(frame: frame)
     
@@ -30,8 +36,6 @@ class ImageCell: UICollectionViewCell {
     imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     imageView.contentMode = .scaleAspectFill
     addSubview(imageView)
-
-    NotificationCenter.default.addObserver(self, selector: #selector(ImageCell.imageUpdated(_:)), name: YapImageManagerUpdatedNotification, object: nil)
   }
   
   deinit {
@@ -45,19 +49,15 @@ class ImageCell: UICollectionViewCell {
   func loadImage(withURLString URLString: String) {
     let imageOptions = ImageRasterizationOptions()
     imageOptions.renderOverlayImage = true
-    YapImageManager.sharedInstance().image(forURLString: URLString, size: self.bounds.size, options: imageOptions) { (image: UIImage?, URLString: String) in
-      if let image = image, URLString == self.URLString {
-        self.imageView.image = image
-      }
-    }
-  }
-  
-  func imageUpdated(_ notification: Notification) {
-    
-    if let URLString = notification.userInfo?[YapImageManagerURLKey] as? String {
-      if URLString == self.URLString {
-        loadImage(withURLString: URLString)
-      }
+		ticket = YapImageManager.sharedInstance().asyncImage(forURLString: URLString, size: self.bounds.size, options: imageOptions) { [weak self] result in
+			
+			if result.ticket == self?.ticket {
+				self?.ticket = nil
+			
+				if let image = result.image {
+					self?.imageView.image = image
+				}
+			}
     }
   }
   
