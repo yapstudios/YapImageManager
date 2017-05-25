@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
 	}
 
   s.source = {
-		:git => 'git@github.com:yapstudios/YapImageManager.git',
+		:git => 'https://github.com/yapstudios/YapImageManager.git',
 		:tag => s.version
 	}
 
