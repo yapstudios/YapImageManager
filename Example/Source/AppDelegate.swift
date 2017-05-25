@@ -23,8 +23,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     DDLog.add(DDTTYLogger.sharedInstance)
     defaultDebugLevel = .verbose
 
-    YapImageManager.sharedInstance().overlayImage = UIImage(named: "tileShadow")?.resizableImage(withCapInsets: UIEdgeInsetsMake(4.0, 4.0, 4.0, 4.0))
-
 		return true
 	}
 

@@ -12,6 +12,11 @@ import YapImageManager
 class ImageCell: UICollectionViewCell {
   
   let imageView = UIImageView(frame: .zero)
+  
+  // filters
+  static let overlayImage = UIImage(named: "tileShadow")!.resizableImage(withCapInsets: UIEdgeInsetsMake(4.0, 4.0, 4.0, 4.0))
+  let overlay = OverlayImageFilter(overlayImage: ImageCell.overlayImage)
+  let aspectFill = AspectFillFilter()
 
   var URLString: String? {
     didSet {
@@ -34,7 +39,7 @@ class ImageCell: UICollectionViewCell {
     
     imageView.frame = self.bounds
     imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-    imageView.contentMode = .scaleAspectFill
+    imageView.contentMode = .topLeft
     addSubview(imageView)
   }
   
@@ -47,9 +52,9 @@ class ImageCell: UICollectionViewCell {
   }
   
   func loadImage(withURLString URLString: String) {
-    let imageOptions = ImageRasterizationOptions()
-    imageOptions.renderOverlayImage = true
-		ticket = YapImageManager.sharedInstance().asyncImage(forURLString: URLString, size: self.bounds.size, options: imageOptions) { [weak self] result in
+
+    let filters: [YapImageFilter] = [aspectFill, overlay]
+		ticket = YapImageManager.sharedInstance().asyncImage(forURLString: URLString, size: self.bounds.size, filters: filters) { [weak self] result in
 			
 			if result.ticket == self?.ticket {
 				self?.ticket = nil
