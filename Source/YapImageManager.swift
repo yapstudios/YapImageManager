@@ -10,8 +10,6 @@ import YapDatabase
 import Alamofire
 import CocoaLumberjack
 
-public let YapImageManagerExpireImagesAfter = 172800.0 // 48 hours
-public let YapImageManagerExpireImageAttributesAfter = 1209600.0 // 2 weeks
 public let YapImageManagerUpdatedNotification = Notification.Name(rawValue: "YapImageManagerUpdatedNotification")
 public let YapImageManagerFailedNotification = Notification.Name(rawValue: "YapImageManagerFailedNotification")
 public let YapImageManagerImageWillBeginDownloadingNotification = Notification.Name(rawValue: "YapImageManagerImageWillBeginDownloadingNotification")
@@ -20,22 +18,26 @@ public let YapImageManagerURLKey: String = "image_url"
 public let YapImageManagerImageAttributesKey: String = "image_attributes"
 public let YapImageManagerImageCollection: String = "images"
 public let YapImageManagerImageAttributesCollection: String = "image_attributes"
-public let YapImageManagerMaxDecodeWidthHeight = 1024.0
-public let YapImageManagerMaxDatabaseWidthHeight = 4096.0
-public let YapImageManagerWidthHeightToResizeIfDatabaseMaxWidthHeightExceeded = 1024.0
-public let YapImageManagerMaxSimultaneousImageRequests = 5
-public let YapImageManagerAcceptableContentTypes = ["image/tiff", "image/jpeg", "image/jpg", "image/gif", "image/png", "image/ico", "image/x-icon", "image/bmp", "image/x-bmp", "image/x-xbitmap", "image/x-win-bitmap"]
 
-public typealias ImageRequestCompletion = (_ result: ImageResult) -> Void
-public typealias ImageRequestTicket = String
-
-public enum YapImageManagerError: Error {
+public struct YapImageManagerConfiguration {
   
-  /// Unable to decode image
-  case imageDecodeFailure
+  var databaseName: String
+  var attributesDatabaseName: String
+  var expireImagesAfter: TimeInterval
+  var expireImageAttributesAfter: TimeInterval
+  var maxDecodeWidthHeight: Float
+  var maxSaveToDatabaseWidthHeight: Float
+  var widthToResizeIfDatabaseMaxWidthHeightExceeded: Float
+  var maxSimultaneousImageRequests: Int
+  var timeoutIntervalForRequest: TimeInterval
+  var acceptableContentTypes: [String]
 }
 
-public class ImageResult {
+public typealias ImageRequestTicket = String
+
+public typealias ImageRequestCompletion = (_ result: ImageResponse) -> Void
+
+public class ImageResponse {
   
   public var URLString: String
   public var ticket: ImageRequestTicket
@@ -50,7 +52,7 @@ public class ImageResult {
   }
 }
 
-class ImageRequestResponseType {
+class ImageResponseHandler {
   
   var ticket: ImageRequestTicket
   var completion: ImageRequestCompletion
@@ -66,17 +68,27 @@ class ImageRequestResponseType {
 }
 
 class ImageRequest: NSObject {
+  
   var URLString: String = ""
   var progress: Progress?
   var downloadstartTime: Date? // start of download
-  var responses = [ImageRequestResponseType]()
+  var responses = [ImageResponseHandler]()
   
   override var description: String {
     return URLString
   }
 }
 
-public class YapImageManager: NSObject {
+public enum YapImageManagerError: Error {
+  
+  /// Unable to decode image
+  case imageDecodeFailure
+}
+
+public class YapImageManager {
+
+  // Configuration
+  private var configuration: YapImageManagerConfiguration
 
   // Alamofire
   private var sessionManager: SessionManager
@@ -101,41 +113,50 @@ public class YapImageManager: NSObject {
 
   fileprivate static let _sharedInstance = YapImageManager()
   
-  /// Set to draw
-  public var overlayImage: UIImage?
-  
   public static func sharedInstance() -> YapImageManager {
     return _sharedInstance
   }
-	
-  override init() {
+
+  // MARK: Initialization
+
+  public class func defaultConfiguration() -> YapImageManagerConfiguration {
+    let configuration = YapImageManagerConfiguration(
+      databaseName: "YapImageManager.sqlite",
+      attributesDatabaseName: "YapImageAttributes.sqlite",
+      expireImagesAfter: 172800.0, // 48 hours
+      expireImageAttributesAfter: 1209600.0, // 2 weeks
+      maxDecodeWidthHeight: 1024.0,
+      maxSaveToDatabaseWidthHeight: 4096.0,
+      widthToResizeIfDatabaseMaxWidthHeightExceeded: 1024.0,
+      maxSimultaneousImageRequests: 4,
+      timeoutIntervalForRequest: 30.0,
+      acceptableContentTypes: ["image/tiff", "image/jpeg", "image/jpg", "image/gif", "image/png", "image/ico", "image/x-icon", "image/bmp", "image/x-bmp", "image/x-xbitmap", "image/x-win-bitmap"]
+    )
+    return configuration
+  }
+  
+  init(configuration: YapImageManagerConfiguration = YapImageManager.defaultConfiguration()) {
 		
-		func databasePath() -> String {
+    func databasePath(withName name: String) -> String {
       let paths: [Any] = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true)
       let databaseDir: String? = (paths.count > 0) ? (paths[0] as? String) : NSTemporaryDirectory()
-      let databaseName: String = "YapImageManager.sqlite"
-      return URL(fileURLWithPath: databaseDir!).appendingPathComponent(databaseName).absoluteString
+      return URL(fileURLWithPath: databaseDir!).appendingPathComponent(name).absoluteString
     }
     
-    func attributesDatabasePath() -> String {
-      let paths: [Any] = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true)
-      let databaseDir: String? = (paths.count > 0) ? (paths[0] as? String) : NSTemporaryDirectory()
-      let databaseName: String = "YapURLImageAttributes.sqlite"
-      return URL(fileURLWithPath: databaseDir!).appendingPathComponent(databaseName).absoluteString
-    }
+    self.configuration = configuration
 
     // Create a session configuration with no cache
     let config = URLSessionConfiguration.ephemeral
     // Note: this is not the same a max concurrent operations
-    config.httpMaximumConnectionsPerHost = YapImageManagerMaxSimultaneousImageRequests
-    config.timeoutIntervalForRequest = 30.0 // 30 second timeout
+    config.httpMaximumConnectionsPerHost = configuration.maxSimultaneousImageRequests
+    config.timeoutIntervalForRequest = configuration.timeoutIntervalForRequest
     sessionManager = SessionManager(configuration: config)
 
     // Initialize database and connections
     let options = YapDatabaseOptions()
     options.pragmaPageSize = 32768
     options.aggressiveWALTruncationSize = 1024 * 1024 * 100
-    database = YapDatabase(path: databasePath(), objectSerializer: nil, objectDeserializer: nil, metadataSerializer: nil, metadataDeserializer: nil, objectPreSanitizer: nil, objectPostSanitizer: nil, metadataPreSanitizer: nil, metadataPostSanitizer: nil, options: options)
+    database = YapDatabase(path: databasePath(withName:configuration.databaseName), objectSerializer: nil, objectDeserializer: nil, metadataSerializer: nil, metadataDeserializer: nil, objectPreSanitizer: nil, objectPostSanitizer: nil, metadataPreSanitizer: nil, metadataPostSanitizer: nil, options: options)
     
     databaseConnection = database.newConnection()
     databaseConnection.objectCacheEnabled = false
@@ -149,7 +170,7 @@ public class YapImageManager: NSObject {
     backgroundDatabaseConnection.objectPolicy = .share
     backgroundDatabaseConnection.metadataPolicy = .share
     
-    attributesDatabase = YapDatabase(path: attributesDatabasePath())
+    attributesDatabase = YapDatabase(path: databasePath(withName: configuration.attributesDatabaseName))
     attributesDatabaseConnection = attributesDatabase.newConnection()
     attributesDatabaseConnection.objectCacheEnabled = false
     attributesDatabaseConnection.metadataCacheEnabled = false
@@ -163,8 +184,6 @@ public class YapImageManager: NSObject {
     backgroundAttributesDatabaseConnection.metadataPolicy = .share
 
     imageDecodeQueue = DispatchQueue(label: "YapImageManager.imageDecodeQueue", qos: .default, attributes: .concurrent)
-
-    super.init()
 
     pendingWritesDict = [AnyHashable: Any]()
     attributesCache = NSCache()
@@ -184,12 +203,11 @@ public class YapImageManager: NSObject {
     }
     reachabilityManager?.startListening()
   }
-  
-  deinit {
-    NotificationCenter.default.removeObserver(self)
-  }
+
+  // MARK: Public image request methods
 
   /// Request an image
+  @discardableResult
   public func asyncImage(forURLString URLString: String, size: CGSize? = nil, filters: [YapImageFilter]? = [AspectFillFilter()], completion: @escaping ImageRequestCompletion) -> ImageRequestTicket {
 		let ticket: ImageRequestTicket = UUID().uuidString
 		let key = self.keyForImage(withURLString: URLString, size: size, filters: filters)
@@ -199,7 +217,7 @@ public class YapImageManager: NSObject {
       DDLogDebug("Found decoded image in memory cache \(URLString) key=\(key)")
 			DispatchQueue.main.async(execute: {() -> Void in
 				autoreleasepool {
-					completion(ImageResult(URLString: URLString, ticket: ticket, image: cachedImage))
+					completion(ImageResponse(URLString: URLString, ticket: ticket, image: cachedImage))
 				}
 			})
     } else {
@@ -221,7 +239,7 @@ public class YapImageManager: NSObject {
               }
             }
           }
-          // TODO: check to see if image is old and redownload on background queue
+
           var image: UIImage?
           if let imageData = imageData {
             image = UIImage(data: imageData, scale: UIScreen.main.scale)
@@ -240,7 +258,7 @@ public class YapImageManager: NSObject {
             DispatchQueue.main.async(execute: {() -> Void in
               autoreleasepool {
                 if let filteredImage = filteredImage {
-									completion(ImageResult(URLString: URLString, ticket: ticket, image: filteredImage))
+									completion(ImageResponse(URLString: URLString, ticket: ticket, image: filteredImage))
                 } else {
                   DDLogError("Failed to filter image with URL \(URLString)")
                 }
@@ -250,11 +268,11 @@ public class YapImageManager: NSObject {
             DispatchQueue.main.async(execute: {() -> Void in
               autoreleasepool {
                 if let image = image {
-									completion(ImageResult(URLString: URLString, ticket: ticket, image: image))
+									completion(ImageResponse(URLString: URLString, ticket: ticket, image: image))
                 }
                 else {
                   // add to queue to download
-									let response = ImageRequestResponseType(
+									let response = ImageResponseHandler(
 										ticket: ticket,
 										completion: completion,
 										size: size,
@@ -288,18 +306,18 @@ public class YapImageManager: NSObject {
 		}
 	}
 	
-  // resized image with rasterization options
-  public func image(with size: CGSize, filters: [YapImageFilter], completion: @escaping (_ image: UIImage?) -> Void) {
+  /// Create a new image using image filters
+  public func createImage(with size: CGSize, filters: [YapImageFilter], completion: @escaping (_ image: UIImage?) -> Void) {
     
     let key = keyForImage(withURLString: nil, size: size, filters: filters)
     
-    // return cached image if available
+    // Return cached image if available
     if let cachedImage = imagesCache?.object(forKey: key as NSString) {
       DDLogVerbose("Found filtered image in memory cache key=\(key)")
       completion(cachedImage)
       return
     }
-    // render image
+    // Render image using filters
     imageDecodeQueue.async(execute: {() -> Void in
       autoreleasepool {
         if let filteredImage = self.filteredImage(forImage: nil, size: size, filters: filters) {
@@ -311,14 +329,69 @@ public class YapImageManager: NSObject {
             }
           })
         } else {
-          DDLogError("Failed to rasterize image")
+          DDLogError("Failed to create image")
           completion(nil)
         }
       }
     })
   }
+
+  /// Increase the priority of an image request
+  public func prioritizeImage(forURLString URLString: String) {
+
+    if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
+      // move to end of list to bump priority, if not already downloading
+      queuedRequests.remove(at: index)
+      queuedRequests.append(foundItem)
+      DDLogVerbose("Increasing priority for download \(URLString)")
+    }
+  }
   
-  func queueImage(forURLString URLString: String, response: ImageRequestResponseType) {
+  /// Returns a sized and filtered image from the image cache, if available
+  public func cachedImage(forURLString URLString: String, size: CGSize? = nil, filters: [YapImageFilter]? = [AspectFillFilter()]) -> UIImage? {
+
+    let key = keyForImage(withURLString: URLString, size: size, filters: filters)
+    
+    if let cachedImage = imagesCache?.object(forKey: key as NSString) {
+      return cachedImage
+    }
+    return nil
+  }
+
+  /// Returns full sized, original image directly from the database if available, otherwise nil
+  /// This method is synchronous, so not recommened for use during scrolling
+  public func databaseImage(forURLString URLString: String) -> UIImage? {
+    if let imageData = databaseImageData(forURLString: URLString) {
+      return UIImage(data: imageData, scale: UIScreen.main.scale)
+    }
+    return nil
+  }
+  
+  /// Returns full sized, original image data directly from the database if available, otherwise nil
+  /// This method is synchronous, so not recommened for use during scrolling
+  public func databaseImageData(forURLString URLString: String) -> Data? {
+    // check the database
+    var imageData: Data? = nil
+    databaseConnection.read { transaction in
+      imageData = transaction.object(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? Data
+    }
+    return imageData
+  }
+
+  /// Returns the Progress for an active download request, or nil if not available
+  /// Progress is available after YapImageManagerImageWillBeginDownloadingNotification
+  public func downloadProgress(forURLString URLString: String) -> Progress? {
+    if let imageRequest = self.activeImageRequest(forURLString: URLString) {
+      return imageRequest.progress
+    } else {
+      return nil
+    }
+  }
+  
+  // MARK: Image queue
+
+  func queueImage(forURLString URLString: String, response: ImageResponseHandler) {
+    
     if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
       // move to end of list to bump priority, if not already downloading
 			foundItem.responses.append(response)
@@ -336,42 +409,293 @@ public class YapImageManager: NSObject {
   }
   
   func isImageQueued(forURLString URLString: String) -> Bool {
+    
     // NOTE: Active imageRequests remain on downloadQueue, so it's only necessary to check downloadQueue
     let foundItem: ImageRequest? = queuedImageRequest(forURLString: URLString)
     return (foundItem != nil)
   }
   
-  /// Moves queued image download with URLString to the top of the list
-  public func prioritizeImage(forURLString URLString: String) {
+  func queuedImageRequest(forURLString URLString: String) -> ImageRequest? {
+    
+    let items = queuedRequests.filter { $0.URLString == URLString }
+    return items.first
+  }
+  
+  func removeQueuedImageRequest(forURLString URLString: String) {
+    
     if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
-      // move to end of list to bump priority, if not already downloading
       queuedRequests.remove(at: index)
-      queuedRequests.append(foundItem)
-      DDLogVerbose("Increasing priority for download \(URLString)")
     }
   }
   
-  /// Returns full sized image
-  /// This method is synchronous, so not recommened for use during scrolling
-  public func cachedImage(forURLString URLString: String) -> UIImage? {
-    if let imageData = cachedImageData(forURLString: URLString) {
-      return UIImage(data: imageData, scale: UIScreen.main.scale)
+  func nextImageRequest() -> ImageRequest? {
+    
+    if let nextRequest = queuedRequests.last {
+      if let _ = activeImageRequest(forURLString: nextRequest.URLString) {
+        // skip
+      } else {
+        return nextRequest
+      }
     }
     return nil
   }
-  
-  /// Returns full size image, as Data?
-  /// This method is synchronous, so not recommened for use during scrolling
-  public func cachedImageData(forURLString URLString: String) -> Data? {
-    // check the database
-    var imageData: Data? = nil
-    databaseConnection.read { transaction in
-      imageData = transaction.object(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? Data
+	
+	func activeImageRequest(forURLString URLString: String) -> ImageRequest? {
+    
+		let requests = activeRequests.filter { $0.URLString == URLString }
+		return requests.first
+	}
+	
+	// Returns true if active requests have not exceeded max simultaneous requests
+	func isReadyForRequest() -> Bool {
+		return ((activeRequests.count < configuration.maxSimultaneousImageRequests) && isReachable)
+	}
+	
+  func processImageQueue() {
+    
+    guard isReadyForRequest()  else { return }
+    
+    // process image
+    if !queuedRequests.isEmpty {
+      if let imageRequest = nextImageRequest() {
+        activeRequests.append(imageRequest)
+        // start image download
+        downloadImage(forRequest: imageRequest)
+        DDLogVerbose("Download image \(imageRequest.URLString) (active:\(activeRequests.count) queued: \(queuedRequests.count))")
+      }
     }
-    return imageData
+  }
+
+  // MARK: - Image download
+
+  func downloadImage(forRequest imageRequest: ImageRequest) {
+    
+    let request = sessionManager.request(imageRequest.URLString)
+      .validate(contentType: configuration.acceptableContentTypes)
+      .responseData() { response in
+        switch response.result {
+        case .success:
+          var imageData = response.data
+          if imageData != nil {
+            
+            if let downloadstartTime = imageRequest.downloadstartTime {
+              DDLogVerbose(String(format: "Image downloaded in %2.2f seconds %@", -downloadstartTime.timeIntervalSinceNow, imageRequest.URLString))
+            }
+            
+            self.imageDecodeQueue.async(execute: {() -> Void in
+              autoreleasepool {
+                // update the image attributes, if necessary
+                let image = UIImage(data: imageData!)
+                let imageAttributes = self.imageAttributes(forURLString: imageRequest.URLString)
+                var imageSize = CGSize.zero
+                var shouldUpdateImageAttributes = false
+                
+                if let imageAttributes = imageAttributes {
+                  imageSize = self.imageSize(withAttributes: imageAttributes)
+                  
+                } else if let image = image {
+                  // update image size attribute with actual image size; this should only be required if we were unable to pick up the image dimensions from the headers during download
+                  let scale: CGFloat = UIScreen.main.scale
+                  imageSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+                  shouldUpdateImageAttributes = true
+                }
+                
+                // Resize image to max database size, if necessary
+                if let _ = self.maxSizeForImage(withSize: imageSize, maxWidthHeight: CGFloat(self.configuration.maxSaveToDatabaseWidthHeight)) {
+                  imageSize = self.maxSizeForImage(withSize: imageSize, maxWidthHeight: CGFloat(self.configuration.widthToResizeIfDatabaseMaxWidthHeightExceeded)) ?? imageSize
+                  DDLogVerbose("Image exceeded max size for database; resizing \(imageRequest.URLString)");
+                  if let resizedImage = self.filteredImage(forImage: image, size: imageSize) {
+                    shouldUpdateImageAttributes = true
+                    imageData = UIImageJPEGRepresentation(resizedImage, 0.8)
+                  }
+                }
+                
+                // write the image attributes, if necessary
+                if shouldUpdateImageAttributes {
+                  DDLogVerbose("Update image attributes \(imageRequest.URLString)")
+                  self.updateImageAttributes(with: imageSize, forURLString: imageRequest.URLString)
+                }
+                
+                // decode all images and save to cache
+                if let image = image {
+                  for completion in imageRequest.responses {
+                    let filteredImage = self.filteredImage(forImage: image, resizedTo: completion.size, filters: completion.filters)
+                    
+                    if let filteredImage = filteredImage {
+                      // save image in cache
+                      let key = self.keyForImage(withURLString: imageRequest.URLString, size: completion.size, filters: completion.filters)
+                      DDLogVerbose("Save filtered image to memory cache \(imageRequest.URLString) key=\(key)")
+                      self.imagesCache?.setObject(filteredImage, forKey: key as NSString)
+                    }
+                  }
+                }
+                
+                // dispatch next request on main thread
+                DispatchQueue.main.async(execute: {() -> Void in
+                  autoreleasepool {
+                    // remove queue item
+                    self.removeQueuedImageRequest(forURLString: imageRequest.URLString)
+                    imageRequest.progress = nil
+                    self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
+                    if let imageData = imageData {
+                      self.saveImageToDatabase(imageData, forURLString: imageRequest.URLString)
+                    }
+                    
+                    // call completion blocks
+                    for imageResponse in imageRequest.responses {
+                      
+                      let key = self.keyForImage(withURLString: imageRequest.URLString, size: imageResponse.size, filters: imageResponse.filters)
+                      if let cachedImage = self.imagesCache?.object(forKey: key as NSString) {
+                        DDLogDebug("Return decoded image after download \(imageRequest.URLString) key=\(key)")
+                        imageResponse.completion(ImageResponse(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: cachedImage))
+                      } else {
+                        // An error occurred
+                        imageResponse.completion(ImageResponse(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: nil, error: YapImageManagerError.imageDecodeFailure))
+                      }
+                    }
+                    
+                    // POST notification
+                    let userInfo: [AnyHashable: Any] = [YapImageManagerURLKey: imageRequest.URLString]
+                    NotificationCenter.default.post(name: YapImageManagerUpdatedNotification, object: self, userInfo: userInfo)
+                    
+                    self.processImageQueue()
+                  }
+                })
+              }
+            })
+          } else {
+            // TODO: write NULL to database to prevent repetitive download requests
+          }
+        case .failure(let error):
+          // remove queue item
+          self.removeQueuedImageRequest(forURLString: imageRequest.URLString)
+          imageRequest.progress = nil
+          self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
+          
+          // call failed completion blocks
+          for imageResponse in imageRequest.responses {
+            // An error occurred
+            imageResponse.completion(ImageResponse(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: nil, error: error))
+          }
+          
+          // POST failed notification
+          let userInfo: [AnyHashable: Any] = [YapImageManagerURLKey: imageRequest.URLString]
+          NotificationCenter.default.post(name: YapImageManagerFailedNotification, object: self, userInfo: userInfo)
+          DDLogError("Error downloading \(imageRequest.URLString) - \(error.localizedDescription)")
+          
+          // process next download
+          self.processImageQueue()
+        }
+    }
+    imageRequest.progress = request.progress
+    imageRequest.downloadstartTime = Date()
+    
+    let userInfo: [AnyHashable: Any] = [YapImageManagerURLKey: imageRequest.URLString]
+    NotificationCenter.default.post(name: YapImageManagerImageWillBeginDownloadingNotification, object: self, userInfo: userInfo)
   }
   
-  // image attributes
+  func saveImageToDatabase(_ imageData: Data, forURLString URLString: String) {
+    
+    let downloadTimestamp = Date()
+    pendingWritesDict[keyForImage(withURLString: URLString)] = imageData
+    
+    backgroundDatabaseConnection.asyncReadWrite ({ transaction in
+      transaction.setObject(imageData, forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection, withMetadata: downloadTimestamp)
+    }, completionBlock: { () -> Void in
+      self.pendingWritesDict.removeValue(forKey: self.keyForImage(withURLString: URLString))
+      DDLogVerbose("Save image to database \(URLString)")
+    })
+  }
+
+  /// Returns a unique key for the image request, with a hash of the url, size, and all image filters
+  func keyForImage(withURLString URLString: String?, size: CGSize? = nil, filters: [YapImageFilter]? = nil) -> String {
+    var key = String()
+    key += String(format: "\(URLString?.md5Hash() ?? "<na>")_%0.5f_%0.5f", size?.width ?? 0.0, size?.height ?? 0.0)
+    
+    if let filters = filters {
+      for filter in filters {
+        key += filter.key
+      }
+    }
+    return key
+  }
+  
+  // MARK: Image filters
+  
+  func filteredImage(forImage image: UIImage, resizedTo size: CGSize? = nil, filters: [YapImageFilter]? = nil) -> UIImage? {
+    
+    var filteredImage: UIImage?
+    
+    if let size = size {
+      // resize image to size specified
+      filteredImage = self.filteredImage(forImage: image, size: size, filters: filters)
+    }	else {
+      // otherwise, decode up to a max size
+      if let maxSize = self.maxSizeForImage(withSize: image.size, maxWidthHeight: CGFloat(configuration.maxDecodeWidthHeight)) {
+        filteredImage = self.filteredImage(forImage: image, size: maxSize, filters: filters)
+      } else {
+        filteredImage = self.filteredImage(forImage: image, size: image.size, filters: filters)
+      }
+    }
+    return filteredImage
+  }
+  
+  func filteredImage(forImage image: UIImage?, size: CGSize, filters: [YapImageFilter]? = nil) -> UIImage? {
+    
+    var aspectFillImage: UIImage?
+    UIGraphicsBeginImageContextWithOptions(size, false, UIScreen.main.scale)
+    let imageRect = CGRect(x: 0, y: 0, width: size.width, height: size.height)
+    guard let context = UIGraphicsGetCurrentContext() else { return nil }
+    context.translateBy(x: 0.0, y: size.height)
+    context.scaleBy(x: 1.0, y: -1.0)
+    context.setBlendMode(.normal)
+    context.interpolationQuality = .default
+    
+    if let filters = filters, !filters.isEmpty {
+      for filter in filters {
+        filter.draw(inContext: context, image: image, rect: imageRect, imageRect: imageRect)
+      }
+    } else {
+      // if no filters were specifed, just render the image aspect fill
+      let filter = AspectFillFilter()
+      filter.draw(inContext: context, image: image, rect: imageRect, imageRect: imageRect)
+    }
+    
+    // capture the image
+    aspectFillImage = UIGraphicsGetImageFromCurrentImageContext()
+    UIGraphicsEndImageContext()
+    return aspectFillImage
+  }
+  
+  // return nil if image does not need resizing, otherwise a new size with same aspect
+  func maxSizeForImage(withSize imageSize: CGSize, maxWidthHeight: CGFloat) -> CGSize? {
+    
+    var maxSize: CGSize?
+    if imageSize.width > maxWidthHeight || imageSize.height > maxWidthHeight {
+      if imageSize.width > imageSize.height {
+        maxSize = CGSize(
+          width: maxWidthHeight,
+          height: (maxWidthHeight * imageSize.height / imageSize.width).rounded()
+        )
+      }
+      else {
+        maxSize = CGSize(
+          width: (maxWidthHeight * imageSize.width / imageSize.height).rounded(),
+          height: maxWidthHeight
+        )
+      }
+    }
+    return maxSize
+  }
+  
+  // MARK: - Image attributes
+  
+  /// NOTE: this feature is still in being ported from the Objective C version and will be made a public.
+  /// The image size and width is decoded during download from the headers of jpeg, gif, and png files and
+  /// a notification is posted. This is extremely useful for applications that need the image size for 
+  /// layout in advance of the image download.
+
+  /// Returns image attributes
   func imageAttributes(forURLString URLString: String) -> NSDictionary? {
     // check the database
     var imageAttributes: NSDictionary?
@@ -400,238 +724,7 @@ public class YapImageManager: NSObject {
     }
     return imageSize
   }
-  
-  func downloadProgress(forURLString URLString: String) -> Progress? {
-    if let imageRequest = self.activeImageRequest(forURLString: URLString) {
-      return imageRequest.progress
-    } else {
-      return nil
-    }
-  }
-  
-  func saveImage(_ imageData: Data, forURLString URLString: String) {
-    // save to database
-    let downloadTimestamp = Date()
-    pendingWritesDict[keyForImage(withURLString: URLString)] = imageData
-		
-    backgroundDatabaseConnection.asyncReadWrite ({ transaction in
-      transaction.setObject(imageData, forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection, withMetadata: downloadTimestamp)
-    }, completionBlock: { () -> Void in
-      self.pendingWritesDict.removeValue(forKey: self.keyForImage(withURLString: URLString))
-      DDLogVerbose("Save image to database \(URLString)")
-    })
-  }
-  
-  func vacuumDatabaseIfNeeded() {
-    
-    if backgroundDatabaseConnection.pragmaAutoVacuum() == "NONE" {
-      // We don't vacuum right away.
-      // The app just launched, so it could be pulling down stuff from the server.
-      // Instead, we queue up the vacuum operation to run after a slight delay.
-      DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: {() -> Void in
-        self.backgroundDatabaseConnection.asyncVacuum {
-          DDLogInfo("VACUUM complete (upgrading database auto_vacuum setting)")
-        }
-      })
-    }
-  }
-  
-  func downloadImage(forRequest imageRequest: ImageRequest) {
-    
-    let request = sessionManager.request(imageRequest.URLString)
-      .validate(contentType: YapImageManagerAcceptableContentTypes)
-      .responseData() { response in
-        switch response.result {
-        case .success:
-          var imageData = response.data
-          if imageData != nil {
-            
-            if let downloadstartTime = imageRequest.downloadstartTime {
-              DDLogVerbose(String(format: "Image downloaded in %2.2f seconds %@", -downloadstartTime.timeIntervalSinceNow, imageRequest.URLString))
-            }
-            
-            self.imageDecodeQueue.async(execute: {() -> Void in
-              autoreleasepool {
-                // update the image attributes, if necessary
-								let image = UIImage(data: imageData!)
-								let imageAttributes = self.imageAttributes(forURLString: imageRequest.URLString)
-                var imageSize = CGSize.zero
-                var shouldUpdateImageAttributes = false
-                
-                if let imageAttributes = imageAttributes {
-                  imageSize = self.imageSize(withAttributes: imageAttributes)
-                  
-                } else if let image = image {
-                  // update image size attribute with actual image size; this should only be required if we were unable to pick up the image dimensions from the headers during download
-                  let scale: CGFloat = UIScreen.main.scale
-                  imageSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-                  shouldUpdateImageAttributes = true
-                }
-                
-                // Resize image to max database size, if necessary
-								if let _ = self.maxSizeForImage(withSize: imageSize, maxWidthHeight: CGFloat(YapImageManagerMaxDatabaseWidthHeight)) {
-                  imageSize = self.maxSizeForImage(withSize: imageSize, maxWidthHeight: CGFloat(YapImageManagerWidthHeightToResizeIfDatabaseMaxWidthHeightExceeded)) ?? imageSize
-                  DDLogVerbose("Image exceeded max size for database; resizing \(imageRequest.URLString)");
-                  if let resizedImage = self.filteredImage(forImage: image, size: imageSize) {
-                    shouldUpdateImageAttributes = true
-                    imageData = UIImageJPEGRepresentation(resizedImage, 0.8)
-                  }
-                }
-                
-                // write the image attributes, if necessary
-                if shouldUpdateImageAttributes {
-                  DDLogVerbose("Update image attributes \(imageRequest.URLString)")
-                  self.updateImageAttributes(with: imageSize, forURLString: imageRequest.URLString)
-                }
-								
-								// decode all images and save to cache
-								if let image = image {
-									for completion in imageRequest.responses {
-										let filteredImage = self.filteredImage(forImage: image, resizedTo: completion.size, filters: completion.filters)
-										
-										if let filteredImage = filteredImage {
-											// save image in cache
-											let key = self.keyForImage(withURLString: imageRequest.URLString, size: completion.size, filters: completion.filters)
-											DDLogVerbose("Save filtered image to memory cache \(imageRequest.URLString) key=\(key)")
-											self.imagesCache?.setObject(filteredImage, forKey: key as NSString)
-										}
-									}
-								}
-								
-                // dispatch next request on main thread
-                DispatchQueue.main.async(execute: {() -> Void in
-                  autoreleasepool {
-                    // remove queue item
-                    self.removeQueuedImageRequest(forURLString: imageRequest.URLString)
-                    imageRequest.progress = nil
-                    self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
-                    if let imageData = imageData {
-                      self.saveImage(imageData, forURLString: imageRequest.URLString)
-                    }
-										
-										// call completion blocks
-										for imageResponse in imageRequest.responses {
-											
-											let key = self.keyForImage(withURLString: imageRequest.URLString, size: imageResponse.size, filters: imageResponse.filters)
-											if let cachedImage = self.imagesCache?.object(forKey: key as NSString) {
-												DDLogDebug("Return decoded image after download \(imageRequest.URLString) key=\(key)")
-												imageResponse.completion(ImageResult(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: cachedImage))
-											} else {
-												// An error occurred
-												imageResponse.completion(ImageResult(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: nil, error: YapImageManagerError.imageDecodeFailure))
-											}
-										}
-										
-										// POST notification
-										let userInfo: [AnyHashable: Any] = [YapImageManagerURLKey: imageRequest.URLString]
-										NotificationCenter.default.post(name: YapImageManagerUpdatedNotification, object: self, userInfo: userInfo)
 
-                    self.processImageQueue()
-                  }
-                })
-              }
-            })
-          } else {
-            // TODO: write NULL to database to prevent repetitive download requests
-          }
-        case .failure(let error):
-          // remove queue item
-          self.removeQueuedImageRequest(forURLString: imageRequest.URLString)
-          imageRequest.progress = nil
-          self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
-
-					// call failed completion blocks
-					for imageResponse in imageRequest.responses {
-						// An error occurred
-						imageResponse.completion(ImageResult(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: nil, error: error))
-					}
-					
-          // POST failed notification
-          let userInfo: [AnyHashable: Any] = [YapImageManagerURLKey: imageRequest.URLString]
-          NotificationCenter.default.post(name: YapImageManagerFailedNotification, object: self, userInfo: userInfo)
-          DDLogError("Error downloading \(imageRequest.URLString) - \(error.localizedDescription)")
-          
-          // process next download
-          self.processImageQueue()
-        }
-    }
-    imageRequest.progress = request.progress
-    imageRequest.downloadstartTime = Date()
-
-    let userInfo: [AnyHashable: Any] = [YapImageManagerURLKey: imageRequest.URLString]
-    NotificationCenter.default.post(name: YapImageManagerImageWillBeginDownloadingNotification, object: self, userInfo: userInfo)
-  }
-  
-  func keyForImage(withURLString URLString: String?, size: CGSize? = nil, filters: [YapImageFilter]? = nil) -> String {
-    var key = String()
-    key += String(format: "\(URLString?.md5Hash() ?? "<na>")_%0.5f_%0.5f", size?.width ?? 0.0, size?.height ?? 0.0)
-
-    if let filters = filters {
-      for filter in filters {
-        key += filter.key
-      }
-    }
-    return key
-  }
-  
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // MARK: - Image queue
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  func queuedImageRequest(forURLString URLString: String) -> ImageRequest? {
-    let items = queuedRequests.filter { $0.URLString == URLString }
-    return items.first
-  }
-  
-  func removeQueuedImageRequest(forURLString URLString: String) {
-    if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
-      queuedRequests.remove(at: index)
-    }
-  }
-  
-  func nextImageRequest() -> ImageRequest? {
-    
-    if let nextRequest = queuedRequests.last {
-      if let _ = activeImageRequest(forURLString: nextRequest.URLString) {
-        // skip
-      } else {
-        return nextRequest
-      }
-    }
-    return nil
-  }
-	
-	func activeImageRequest(forURLString URLString: String) -> ImageRequest? {
-		let requests = activeRequests.filter { $0.URLString == URLString }
-		return requests.first
-	}
-	
-
-	// is one or more queues available
-	func isReadyForRequest() -> Bool {
-		return ((activeRequests.count < YapImageManagerMaxSimultaneousImageRequests) && isReachable)
-	}
-	
-  func processImageQueue() {
-    if !isReadyForRequest() {
-      return
-    }
-    // process image
-    if !queuedRequests.isEmpty {
-      if let imageRequest = nextImageRequest() {
-        activeRequests.append(imageRequest)
-        // start image download
-        downloadImage(forRequest: imageRequest)
-        DDLogVerbose("Download image \(imageRequest.URLString) (active:\(activeRequests.count) queued: \(queuedRequests.count))")
-      }
-    }
-  }
-  
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // MARK: - Image attributes
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  /**
-   * Handles posting notification to the main thread.
-   **/
   func postImageAttributesNotification(_ imageAttributes: NSDictionary, forURLString URLString: String) {
     let block: () -> Void = { () -> Void in
       let attributes: [AnyHashable: Any] = [YapImageManagerURLKey: URLString, YapImageManagerImageAttributesKey: imageAttributes]
@@ -677,84 +770,22 @@ public class YapImageManager: NSObject {
     }
   }
   
-  // return CGRectZero if image does not need resizing, otherwise a new size with same aspect
-	func maxSizeForImage(withSize imageSize: CGSize, maxWidthHeight: CGFloat) -> CGSize? {
+  // MARK: Database cleanup
 
-		var maxSize: CGSize?
-		if imageSize.width > maxWidthHeight || imageSize.height > maxWidthHeight {
-			if imageSize.width > imageSize.height {
-				maxSize = CGSize(
-					width: maxWidthHeight,
-					height: (maxWidthHeight * imageSize.height / imageSize.width).rounded()
-				)
-			}
-			else {
-				maxSize = CGSize(
-					width: (maxWidthHeight * imageSize.width / imageSize.height).rounded(),
-					height: maxWidthHeight
-				)
-			}
-		}
-		return maxSize
-	}
-
-	func filteredImage(forImage image: UIImage, resizedTo size: CGSize? = nil, filters: [YapImageFilter]? = nil) -> UIImage? {
-		
-		var filteredImage: UIImage?
-
-		if let size = size {
-			// resize image to size specified
-			filteredImage = self.filteredImage(forImage: image, size: size, filters: filters)
-		}	else {
-			// otherwise, decode up to a max size
-			if let maxSize = self.maxSizeForImage(withSize: image.size, maxWidthHeight: CGFloat(YapImageManagerMaxDecodeWidthHeight)) {
-				filteredImage = self.filteredImage(forImage: image, size: maxSize, filters: filters)
-			} else {
-				filteredImage = self.filteredImage(forImage: image, size: image.size, filters: filters)
-			}
-		}
-		return filteredImage
-	}
-	
-	func filteredImage(forImage image: UIImage?, size: CGSize, filters: [YapImageFilter]? = nil) -> UIImage? {
-
-    var aspectFillImage: UIImage?
-		UIGraphicsBeginImageContextWithOptions(size, false, UIScreen.main.scale)
-		let imageRect = CGRect(x: 0, y: 0, width: size.width, height: size.height)
-		guard let context = UIGraphicsGetCurrentContext() else { return nil }
-		context.translateBy(x: 0.0, y: size.height)
-		context.scaleBy(x: 1.0, y: -1.0)
-		context.setBlendMode(.normal)
-		context.interpolationQuality = .default
-		
-    if let filters = filters, !filters.isEmpty {
-      for filter in filters {
-        filter.draw(inContext: context, image: image, rect: imageRect, imageRect: imageRect)
-      }
-    } else {
-      // if no filters were specifed, just render the image aspect fill
-      let filter = AspectFillFilter()
-      filter.draw(inContext: context, image: image, rect: imageRect, imageRect: imageRect)
+  func vacuumDatabaseIfNeeded() {
+    
+    if backgroundDatabaseConnection.pragmaAutoVacuum() == "NONE" {
+      // We don't vacuum right away.
+      // The app just launched, so it could be pulling down stuff from the server.
+      // Instead, we queue up the vacuum operation to run after a slight delay.
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: {() -> Void in
+        self.backgroundDatabaseConnection.asyncVacuum {
+          DDLogInfo("VACUUM complete (upgrading database auto_vacuum setting)")
+        }
+      })
     }
-		
-		// capture the image
-		aspectFillImage = UIGraphicsGetImageFromCurrentImageContext()
-		UIGraphicsEndImageContext()
-		return aspectFillImage
-	}
-	
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // MARK: - Image Session Manager
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  func imageSessionManager(_ sessionManager: YapImageSessionManager, imageAttributesFound imageAttributes: [AnyHashable: Any], forURLString URLString: String) {
-//    // save to database
-//    // TODO: enable image attributes
-//    //setImageAttributes(imageAttributes, forURLString: URLString)
-//  }
+  }
   
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // MARK: - Cleanup
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   func removeExpiredImages() {
     DispatchQueue.main.async(execute: {() -> Void in
       autoreleasepool {
@@ -765,11 +796,11 @@ public class YapImageManager: NSObject {
           transaction.enumerateKeysAndMetadata(inCollection: YapImageManagerImageAttributesCollection, using: { (key: String, metadata: Any?, stop: UnsafeMutablePointer<ObjCBool>) in
             if let created = metadata as? NSDate {
               let timeSince: TimeInterval = -created.timeIntervalSinceNow
-              if timeSince > Double(YapImageManagerExpireImagesAfter) {
+              if timeSince > self.configuration.expireImagesAfter {
                 DDLogVerbose("Remove expired image \(key)")
                 imageDeleteKeys.append(key)
               }
-              if timeSince > Double(YapImageManagerExpireImageAttributesAfter) {
+              if timeSince > self.configuration.expireImageAttributesAfter {
                 DDLogVerbose("Remove expired attributes \(key)")
                 imageAttributeDeleteKeys.append(key)
               }
