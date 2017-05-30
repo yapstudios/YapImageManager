@@ -1,9 +1,9 @@
 //
 //  YapImageFilter.swift
-//  Pods
+//  YapImageManager
 //
 //  Created by Trevor Stout on 5/24/17.
-//
+//  Copyright (c) 2017 Yap Studios LLC. All rights reserved.
 //
 
 import Foundation
@@ -16,7 +16,7 @@ public protocol YapImageFilter {
   
 }
 
-public class AspectFillFilter: YapImageFilter {
+public class YapAspectFillFilter: YapImageFilter {
   
   public var key = "AspectFill"
   
@@ -62,7 +62,7 @@ public class AspectFillFilter: YapImageFilter {
   }
 }
 
-public class GradientFilter: YapImageFilter {
+public class YapGradientFilter: YapImageFilter {
   
   var startColor: UIColor
   var endColor: UIColor
@@ -124,7 +124,7 @@ public class GradientFilter: YapImageFilter {
   }
 }
 
-public class ColorFilter: YapImageFilter {
+public class YapColorFilter: YapImageFilter {
   
   var color: UIColor
   
@@ -156,7 +156,7 @@ public class ColorFilter: YapImageFilter {
   }
 }
 
-public class OverlayImageFilter: YapImageFilter {
+public class YapOverlayImageFilter: YapImageFilter {
   
   var overlayImage: UIImage
   

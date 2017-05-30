@@ -1,9 +1,9 @@
 //
 //  YapImageManager.swift
-//  Feedworthy
+//  YapImageManager
 //
 //  Created by Trevor Stout on 11/8/13.
-//  Copyright (c) 2013 Yap Studios LLC. All rights reserved.
+//  Copyright (c) 2017 Yap Studios LLC. All rights reserved.
 //
 
 import YapDatabase
@@ -122,12 +122,8 @@ public class YapImageManager {
   private var imagesCache: NSCache<NSString, UIImage>?
   private var isReachable: Bool = false
 
-  fileprivate static let _sharedInstance = YapImageManager()
+  static public let sharedInstance = YapImageManager()
   
-  public static func sharedInstance() -> YapImageManager {
-    return _sharedInstance
-  }
-
   // MARK: Initialization
 
   public class func defaultConfiguration() -> YapImageManagerConfiguration {
@@ -219,7 +215,7 @@ public class YapImageManager {
 
   /// Request an image
   @discardableResult
-  public func asyncImage(forURLString URLString: String, size: CGSize? = nil, filters: [YapImageFilter]? = [AspectFillFilter()], completion: @escaping ImageRequestCompletion) -> ImageRequestTicket {
+  public func asyncImage(forURLString URLString: String, size: CGSize? = nil, filters: [YapImageFilter]? = [YapAspectFillFilter()], completion: @escaping ImageRequestCompletion) -> ImageRequestTicket {
 		let ticket: ImageRequestTicket = UUID().uuidString
 		let key = self.keyForImage(withURLString: URLString, size: size, filters: filters)
 		
@@ -342,7 +338,7 @@ public class YapImageManager {
   }
   
   /// Returns a sized and filtered image from the image cache, if available
-  public func cachedImage(forURLString URLString: String, size: CGSize? = nil, filters: [YapImageFilter]? = [AspectFillFilter()]) -> UIImage? {
+  public func cachedImage(forURLString URLString: String, size: CGSize? = nil, filters: [YapImageFilter]? = [YapAspectFillFilter()]) -> UIImage? {
 
     let key = keyForImage(withURLString: URLString, size: size, filters: filters)
     
@@ -600,14 +596,14 @@ public class YapImageManager {
   /// Returns a unique key for the image request, with a hash of the url, size, and all image filters
   func keyForImage(withURLString URLString: String?, size: CGSize? = nil, filters: [YapImageFilter]? = nil) -> String {
     var key = String()
-    key += String(format: "\(URLString?.md5Hash() ?? "<na>")_%0.5f_%0.5f", size?.width ?? 0.0, size?.height ?? 0.0)
+    key += String(format: "\(URLString ?? "<na>")_%0.5f_%0.5f", size?.width ?? 0.0, size?.height ?? 0.0)
     
     if let filters = filters {
       for filter in filters {
         key += filter.key
       }
     }
-    return key
+    return key.md5Hash()
   }
   
   // MARK: Image filters
@@ -647,7 +643,7 @@ public class YapImageManager {
       }
     } else {
       // if no filters were specifed, just render the image aspect fill
-      let filter = AspectFillFilter()
+      let filter = YapAspectFillFilter()
       filter.draw(inContext: context, image: image, rect: imageRect, imageRect: imageRect)
     }
     

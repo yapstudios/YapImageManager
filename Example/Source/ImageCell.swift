@@ -15,13 +15,13 @@ class ImageCell: UICollectionViewCell {
   
   // filters
   static let overlayImage = UIImage(named: "tileShadow")!.resizableImage(withCapInsets: UIEdgeInsetsMake(4.0, 4.0, 4.0, 4.0))
-  let overlay = OverlayImageFilter(overlayImage: ImageCell.overlayImage)
-  let aspectFill = AspectFillFilter()
+  let overlay = YapOverlayImageFilter(overlayImage: ImageCell.overlayImage)
+  let aspectFill = YapAspectFillFilter()
 
   var URLString: String? {
     didSet {
 			if oldValue != URLString, let ticket = self.ticket {
-				YapImageManager.sharedInstance().cancelImageRequest(forTicket: ticket)
+				YapImageManager.sharedInstance.cancelImageRequest(forTicket: ticket)
 				self.ticket = nil
 			}
       if URLString == nil {
@@ -54,12 +54,12 @@ class ImageCell: UICollectionViewCell {
   func loadImage(withURLString URLString: String) {
 
     let filters: [YapImageFilter] = [aspectFill, overlay]
-		ticket = YapImageManager.sharedInstance().asyncImage(forURLString: URLString, size: self.bounds.size, filters: filters) { [weak self] result in
+		ticket = YapImageManager.sharedInstance.asyncImage(forURLString: URLString, size: self.bounds.size, filters: filters) { [weak self] response in
 			
-			if result.ticket == self?.ticket {
+			if response.ticket == self?.ticket {
 				self?.ticket = nil
 			
-				if let image = result.image {
+				if let image = response.image {
 					self?.imageView.image = image
 				}
 			}
