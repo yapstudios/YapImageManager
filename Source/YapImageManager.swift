@@ -37,17 +37,28 @@ public typealias ImageRequestTicket = String
 
 public typealias ImageRequestCompletion = (_ result: ImageResponse) -> Void
 
+public enum ImageResponseCacheType {
+  /// The image was downloaded, not returned from the memory or database cache
+  case none
+  /// The image was returned from the memory cache
+  case cache
+  /// The image was returned from the database cache
+  case databaseCache
+}
+
 public class ImageResponse {
   
   public var URLString: String
   public var ticket: ImageRequestTicket
   public var image: UIImage?
+  public var cacheType: ImageResponseCacheType
   public var error: Error?
   
-  init(URLString: String, ticket: ImageRequestTicket, image: UIImage?, error: Error? = nil) {
+  init(URLString: String, ticket: ImageRequestTicket, image: UIImage?, cacheType: ImageResponseCacheType = .none, error: Error? = nil) {
     self.URLString = URLString
     self.ticket = ticket
     self.image = image
+    self.cacheType = cacheType
     self.error = error
   }
 }
@@ -216,9 +227,7 @@ public class YapImageManager {
     if let cachedImage = imagesCache?.object(forKey: key as NSString) {
       DDLogDebug("Found decoded image in memory cache \(URLString) key=\(key)")
 			DispatchQueue.main.async(execute: {() -> Void in
-				autoreleasepool {
-					completion(ImageResponse(URLString: URLString, ticket: ticket, image: cachedImage))
-				}
+        completion(ImageResponse(URLString: URLString, ticket: ticket, image: cachedImage, cacheType: .cache))
 			})
     } else {
       
@@ -229,60 +238,49 @@ public class YapImageManager {
       }
       
       imageDecodeQueue.async(execute: {() -> Void in
-        autoreleasepool {
-          if imageData == nil {
-            // check database
-            self.databaseConnection.read { transaction in
-              imageData = transaction.object(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? Data
-              if imageData != nil {
-                DDLogVerbose("Found image in database \(URLString)")
-              }
+        if imageData == nil {
+          // check database
+          self.databaseConnection.read { transaction in
+            imageData = transaction.object(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? Data
+            if imageData != nil {
+              DDLogVerbose("Found image in database \(URLString)")
             }
           }
-
-          var image: UIImage?
-          if let imageData = imageData {
-            image = UIImage(data: imageData, scale: UIScreen.main.scale)
+        }
+        
+        var image: UIImage?
+        if let imageData = imageData {
+          image = UIImage(data: imageData, scale: UIScreen.main.scale)
+        }
+        // if the database image was found, apply filters, save to memory cache, and return
+        if let image = image {
+          
+          let filteredImage = self.filteredImage(forImage: image, resizedTo: size, filters: filters)
+          
+          if let filteredImage = filteredImage {
+            // save image in cache
+            DDLogVerbose("Save filtered image to memory cache \(URLString) key=\(key)")
+            self.imagesCache?.setObject(filteredImage, forKey: key as NSString)
           }
-          // if the full sized image was found, save resized thumbnail size to disk and return
-          if let image = image {
-						
-						let filteredImage = self.filteredImage(forImage: image, resizedTo: size, filters: filters)
-
+          
+          DispatchQueue.main.async(execute: {() -> Void in
             if let filteredImage = filteredImage {
-							// save image in cache
-              DDLogVerbose("Save filtered image to memory cache \(URLString) key=\(key)")
-              self.imagesCache?.setObject(filteredImage, forKey: key as NSString)
+              completion(ImageResponse(URLString: URLString, ticket: ticket, image: filteredImage, cacheType: .databaseCache))
+            } else {
+              DDLogError("Failed to filter image with URL \(URLString)")
             }
-						
-            DispatchQueue.main.async(execute: {() -> Void in
-              autoreleasepool {
-                if let filteredImage = filteredImage {
-									completion(ImageResponse(URLString: URLString, ticket: ticket, image: filteredImage))
-                } else {
-                  DDLogError("Failed to filter image with URL \(URLString)")
-                }
-              }
-            })
-          } else {
-            DispatchQueue.main.async(execute: {() -> Void in
-              autoreleasepool {
-                if let image = image {
-									completion(ImageResponse(URLString: URLString, ticket: ticket, image: image))
-                }
-                else {
-                  // add to queue to download
-									let response = ImageResponseHandler(
-										ticket: ticket,
-										completion: completion,
-										size: size,
-										filters: filters
-									)
-                  self.queueImage(forURLString: URLString, response: response)
-                }
-              }
-            })
-          }
+          })
+        } else {
+          DispatchQueue.main.async(execute: {() -> Void in
+            // add to queue to download
+            let response = ImageResponseHandler(
+              ticket: ticket,
+              completion: completion,
+              size: size,
+              filters: filters
+            )
+            self.queueImage(forURLString: URLString, response: response)
+          })
         }
       })
     }
@@ -319,19 +317,15 @@ public class YapImageManager {
     }
     // Render image using filters
     imageDecodeQueue.async(execute: {() -> Void in
-      autoreleasepool {
-        if let filteredImage = self.filteredImage(forImage: nil, size: size, filters: filters) {
-          // save image in cache
-          self.imagesCache?.setObject(filteredImage, forKey: key as NSString)
-          DispatchQueue.main.async(execute: {() -> Void in
-            autoreleasepool {
-              completion(filteredImage)
-            }
-          })
-        } else {
-          DDLogError("Failed to create image")
-          completion(nil)
-        }
+      if let filteredImage = self.filteredImage(forImage: nil, size: size, filters: filters) {
+        // save image in cache
+        self.imagesCache?.setObject(filteredImage, forKey: key as NSString)
+        DispatchQueue.main.async(execute: {() -> Void in
+          completion(filteredImage)
+        })
+      } else {
+        DDLogError("Failed to create image")
+        completion(nil)
       }
     })
   }
@@ -483,85 +477,81 @@ public class YapImageManager {
             }
             
             self.imageDecodeQueue.async(execute: {() -> Void in
-              autoreleasepool {
-                // update the image attributes, if necessary
-                let image = UIImage(data: imageData!)
-                let imageAttributes = self.imageAttributes(forURLString: imageRequest.URLString)
-                var imageSize = CGSize.zero
-                var shouldUpdateImageAttributes = false
+              // update the image attributes, if necessary
+              let image = UIImage(data: imageData!)
+              let imageAttributes = self.imageAttributes(forURLString: imageRequest.URLString)
+              var imageSize = CGSize.zero
+              var shouldUpdateImageAttributes = false
+              
+              if let imageAttributes = imageAttributes {
+                imageSize = self.imageSize(withAttributes: imageAttributes)
                 
-                if let imageAttributes = imageAttributes {
-                  imageSize = self.imageSize(withAttributes: imageAttributes)
-                  
-                } else if let image = image {
-                  // update image size attribute with actual image size; this should only be required if we were unable to pick up the image dimensions from the headers during download
-                  let scale: CGFloat = UIScreen.main.scale
-                  imageSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-                  shouldUpdateImageAttributes = true
-                }
-                
-                // Resize image to max database size, if necessary
-                if let _ = self.maxSizeForImage(withSize: imageSize, maxWidthHeight: CGFloat(self.configuration.maxSaveToDatabaseWidthHeight)) {
-                  imageSize = self.maxSizeForImage(withSize: imageSize, maxWidthHeight: CGFloat(self.configuration.widthToResizeIfDatabaseMaxWidthHeightExceeded)) ?? imageSize
-                  DDLogVerbose("Image exceeded max size for database; resizing \(imageRequest.URLString)");
-                  if let resizedImage = self.filteredImage(forImage: image, size: imageSize) {
-                    shouldUpdateImageAttributes = true
-                    imageData = UIImageJPEGRepresentation(resizedImage, 0.8)
-                  }
-                }
-                
-                // write the image attributes, if necessary
-                if shouldUpdateImageAttributes {
-                  DDLogVerbose("Update image attributes \(imageRequest.URLString)")
-                  self.updateImageAttributes(with: imageSize, forURLString: imageRequest.URLString)
-                }
-                
-                // decode all images and save to cache
-                if let image = image {
-                  for completion in imageRequest.responses {
-                    let filteredImage = self.filteredImage(forImage: image, resizedTo: completion.size, filters: completion.filters)
-                    
-                    if let filteredImage = filteredImage {
-                      // save image in cache
-                      let key = self.keyForImage(withURLString: imageRequest.URLString, size: completion.size, filters: completion.filters)
-                      DDLogVerbose("Save filtered image to memory cache \(imageRequest.URLString) key=\(key)")
-                      self.imagesCache?.setObject(filteredImage, forKey: key as NSString)
-                    }
-                  }
-                }
-                
-                // dispatch next request on main thread
-                DispatchQueue.main.async(execute: {() -> Void in
-                  autoreleasepool {
-                    // remove queue item
-                    self.removeQueuedImageRequest(forURLString: imageRequest.URLString)
-                    imageRequest.progress = nil
-                    self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
-                    if let imageData = imageData {
-                      self.saveImageToDatabase(imageData, forURLString: imageRequest.URLString)
-                    }
-                    
-                    // call completion blocks
-                    for imageResponse in imageRequest.responses {
-                      
-                      let key = self.keyForImage(withURLString: imageRequest.URLString, size: imageResponse.size, filters: imageResponse.filters)
-                      if let cachedImage = self.imagesCache?.object(forKey: key as NSString) {
-                        DDLogDebug("Return decoded image after download \(imageRequest.URLString) key=\(key)")
-                        imageResponse.completion(ImageResponse(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: cachedImage))
-                      } else {
-                        // An error occurred
-                        imageResponse.completion(ImageResponse(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: nil, error: YapImageManagerError.imageDecodeFailure))
-                      }
-                    }
-                    
-                    // POST notification
-                    let userInfo: [AnyHashable: Any] = [YapImageManagerURLKey: imageRequest.URLString]
-                    NotificationCenter.default.post(name: YapImageManagerUpdatedNotification, object: self, userInfo: userInfo)
-                    
-                    self.processImageQueue()
-                  }
-                })
+              } else if let image = image {
+                // update image size attribute with actual image size; this should only be required if we were unable to pick up the image dimensions from the headers during download
+                let scale: CGFloat = UIScreen.main.scale
+                imageSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+                shouldUpdateImageAttributes = true
               }
+              
+              // Resize image to max database size, if necessary
+              if let _ = self.maxSizeForImage(withSize: imageSize, maxWidthHeight: CGFloat(self.configuration.maxSaveToDatabaseWidthHeight)) {
+                imageSize = self.maxSizeForImage(withSize: imageSize, maxWidthHeight: CGFloat(self.configuration.widthToResizeIfDatabaseMaxWidthHeightExceeded)) ?? imageSize
+                DDLogVerbose("Image exceeded max size for database; resizing \(imageRequest.URLString)");
+                if let resizedImage = self.filteredImage(forImage: image, size: imageSize) {
+                  shouldUpdateImageAttributes = true
+                  imageData = UIImageJPEGRepresentation(resizedImage, 0.8)
+                }
+              }
+              
+              // write the image attributes, if necessary
+              if shouldUpdateImageAttributes {
+                DDLogVerbose("Update image attributes \(imageRequest.URLString)")
+                self.updateImageAttributes(with: imageSize, forURLString: imageRequest.URLString)
+              }
+              
+              // decode all images and save to cache
+              if let image = image {
+                for completion in imageRequest.responses {
+                  let filteredImage = self.filteredImage(forImage: image, resizedTo: completion.size, filters: completion.filters)
+                  
+                  if let filteredImage = filteredImage {
+                    // save image in cache
+                    let key = self.keyForImage(withURLString: imageRequest.URLString, size: completion.size, filters: completion.filters)
+                    DDLogVerbose("Save filtered image to memory cache \(imageRequest.URLString) key=\(key)")
+                    self.imagesCache?.setObject(filteredImage, forKey: key as NSString)
+                  }
+                }
+              }
+              
+              // dispatch next request on main thread
+              DispatchQueue.main.async(execute: {() -> Void in
+                // remove queue item
+                self.removeQueuedImageRequest(forURLString: imageRequest.URLString)
+                imageRequest.progress = nil
+                self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
+                if let imageData = imageData {
+                  self.saveImageToDatabase(imageData, forURLString: imageRequest.URLString)
+                }
+                
+                // call completion blocks
+                for imageResponse in imageRequest.responses {
+                  
+                  let key = self.keyForImage(withURLString: imageRequest.URLString, size: imageResponse.size, filters: imageResponse.filters)
+                  if let cachedImage = self.imagesCache?.object(forKey: key as NSString) {
+                    DDLogDebug("Return decoded image after download \(imageRequest.URLString) key=\(key)")
+                    imageResponse.completion(ImageResponse(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: cachedImage))
+                  } else {
+                    // An error occurred
+                    imageResponse.completion(ImageResponse(URLString: imageRequest.URLString, ticket: imageResponse.ticket, image: nil, error: YapImageManagerError.imageDecodeFailure))
+                  }
+                }
+                
+                // POST notification
+                let userInfo: [AnyHashable: Any] = [YapImageManagerURLKey: imageRequest.URLString]
+                NotificationCenter.default.post(name: YapImageManagerUpdatedNotification, object: self, userInfo: userInfo)
+                
+                self.processImageQueue()
+              })
             })
           } else {
             // TODO: write NULL to database to prevent repetitive download requests
@@ -788,42 +778,40 @@ public class YapImageManager {
   
   func removeExpiredImages() {
     DispatchQueue.main.async(execute: {() -> Void in
-      autoreleasepool {
-        var imageDeleteKeys = [String]()
-        var imageAttributeDeleteKeys = [String]()
-        self.attributesDatabaseConnection.read({ transaction in
-          
-          transaction.enumerateKeysAndMetadata(inCollection: YapImageManagerImageAttributesCollection, using: { (key: String, metadata: Any?, stop: UnsafeMutablePointer<ObjCBool>) in
-            if let created = metadata as? NSDate {
-              let timeSince: TimeInterval = -created.timeIntervalSinceNow
-              if timeSince > self.configuration.expireImagesAfter {
-                DDLogVerbose("Remove expired image \(key)")
-                imageDeleteKeys.append(key)
-              }
-              if timeSince > self.configuration.expireImageAttributesAfter {
-                DDLogVerbose("Remove expired attributes \(key)")
-                imageAttributeDeleteKeys.append(key)
-              }
+      var imageDeleteKeys = [String]()
+      var imageAttributeDeleteKeys = [String]()
+      self.attributesDatabaseConnection.read({ transaction in
+        
+        transaction.enumerateKeysAndMetadata(inCollection: YapImageManagerImageAttributesCollection, using: { (key: String, metadata: Any?, stop: UnsafeMutablePointer<ObjCBool>) in
+          if let created = metadata as? NSDate {
+            let timeSince: TimeInterval = -created.timeIntervalSinceNow
+            if timeSince > self.configuration.expireImagesAfter {
+              DDLogVerbose("Remove expired image \(key)")
+              imageDeleteKeys.append(key)
             }
-          })
-          
-          // remove expired images and images, images first so you never end up with images without attributes
-          self.backgroundDatabaseConnection.asyncReadWrite({ transaction  in
-            // remove images
-            transaction.removeObjects(forKeys: imageDeleteKeys, inCollection: YapImageManagerImageCollection)
-          }, completionBlock: {() -> Void in
-            // remove image attributes after removing images has completed
-            self.backgroundAttributesDatabaseConnection.asyncReadWrite( { transaction in
-              transaction.removeObjects(forKeys: imageAttributeDeleteKeys, inCollection: YapImageManagerImageAttributesCollection)
-            }, completionBlock: {() -> Void in
-              // DEBUG
-              //[self validateDatabaseIntegrity];
-            })
-          })
-          // DEBUG
-          //[self validateDatabaseIntegrity];
+            if timeSince > self.configuration.expireImageAttributesAfter {
+              DDLogVerbose("Remove expired attributes \(key)")
+              imageAttributeDeleteKeys.append(key)
+            }
+          }
         })
-      }
+        
+        // remove expired images and images, images first so you never end up with images without attributes
+        self.backgroundDatabaseConnection.asyncReadWrite({ transaction  in
+          // remove images
+          transaction.removeObjects(forKeys: imageDeleteKeys, inCollection: YapImageManagerImageCollection)
+        }, completionBlock: {() -> Void in
+          // remove image attributes after removing images has completed
+          self.backgroundAttributesDatabaseConnection.asyncReadWrite( { transaction in
+            transaction.removeObjects(forKeys: imageAttributeDeleteKeys, inCollection: YapImageManagerImageAttributesCollection)
+          }, completionBlock: {() -> Void in
+            // DEBUG
+            //[self validateDatabaseIntegrity];
+          })
+        })
+        // DEBUG
+        //[self validateDatabaseIntegrity];
+      })
     })
   }
   
