@@ -8,14 +8,33 @@
 
 import Foundation
 
+// MARK: YapImageFilter protocol
+
+/// A protocol used by YapImageManager to render images in one pass using the same bitmap context used to decode the
+/// downloaded image. Implement the draw() method and the ‘key’ var to create a filter. Filters can be chained in order to 
+/// create the desired effect, e.g. aspect fill, add a gradient, and add an overlay image. Since the image context is
+/// shared, before changing any state to the ‘CGContext’ in the draw() method be sure to call ‘UIGraphicsPushContext’ and 
+/// 'UIGraphicsPopContext’.
 public protocol YapImageFilter {
   
+  /// A unique key for this filter, used for caching to memory
   var key: String { get }
   
+  /// The draw method to render into the bitmap context
+  ///
+  /// - parameter inContext:  The bitmap context for the filtered image
+  /// - parameter image:      The original compressed 'UIImage' that is being filtered. Normally this is only used in the
+  ///                         first pass in order to draw the source image, for example 'YapAspectFillFilter'.
+  /// - parameter rect:       A 'CGRect' of the full bitmap.
+  /// - parameter imageRect:  A 'CGrect' of the image to render, currently the same as imageRect, however will be used in
+  ///                         the future to specify insets.
   func draw(inContext context: CGContext, image: UIImage?, rect: CGRect, imageRect: CGRect) -> Void
   
 }
 
+// MARK: Image filters
+
+/// Draws the source 'image' with content mode aspect fill
 public class YapAspectFillFilter: YapImageFilter {
   
   public var key = "AspectFill"
@@ -62,6 +81,7 @@ public class YapAspectFillFilter: YapImageFilter {
   }
 }
 
+/// Draws an overlay gradient from startColor to endColor
 public class YapGradientFilter: YapImageFilter {
   
   var startColor: UIColor
@@ -90,6 +110,12 @@ public class YapGradientFilter: YapImageFilter {
     return key
   }
   
+  /// Initializes the 'YapGradientFilter' with a given 'startColor' and 'endColor'
+  ///
+  /// - parameter startColor:  A 'UIColor' specifying the gradient start color.
+  /// - parameter endColor:    A 'UIColor' specifying the gradient end color.
+  ///
+  /// - returns: The new 'YapGradientFilter'.
   public init(startColor: UIColor, endColor: UIColor) {
     self.startColor = startColor
     self.endColor = endColor
@@ -124,6 +150,7 @@ public class YapGradientFilter: YapImageFilter {
   }
 }
 
+/// Draws a background or overlay color
 public class YapColorFilter: YapImageFilter {
   
   var color: UIColor
@@ -143,6 +170,11 @@ public class YapColorFilter: YapImageFilter {
     return key
   }
   
+  /// Initializes the 'YapColorFilter' with a given 'color'
+  ///
+  /// - parameter color:  A 'UIColor' specifying the color.
+  ///
+  /// - returns: The new 'YapColorFilter'.
   public init(color: UIColor) {
     self.color = color
   }
@@ -156,10 +188,13 @@ public class YapColorFilter: YapImageFilter {
   }
 }
 
+/// Draws a background or overlay image
 public class YapOverlayImageFilter: YapImageFilter {
   
   var overlayImage: UIImage
-  
+
+  /// The unique 'key' for the image, derived from the pointer to the 'overlayImage'. For optimal caching, use a static 
+  /// ‘UIImage’ when initializing ‘YapOverlayImageFilter’, especially for use in recycled cells.
   public var key: String {
     
     var key = "Overlay"
@@ -168,6 +203,13 @@ public class YapOverlayImageFilter: YapImageFilter {
     return key
   }
   
+  /// Initializes the 'YapOverlayImageFilter' with a given 'color’. The unique 'key' for the image is derived from the 
+  /// pointer to the specified ‘overlayImage'. For optimal caching, use a static ‘UIImage’ when initializing 
+  /// ‘YapOverlayImageFilter’, especially for use in recycled cells.
+  ///
+  /// - parameter overlayImage:  A 'UIImage' specifying the overlay image.
+  ///
+  /// - returns: The new 'YapOverlayImageFilter'.
   public init(overlayImage: UIImage) {
     self.overlayImage = overlayImage
   }

@@ -21,20 +21,32 @@ public let YapImageManagerImageAttributesCollection: String = "image_attributes"
 
 public struct YapImageManagerConfiguration {
   
+  /// The name of the image database, excluding the path
   var databaseName: String
+  /// The name of the image attributes database, excluding the path
   var attributesDatabaseName: String
+  /// Time to expire image and remove from the database, in seconds
   var expireImagesAfter: TimeInterval
+  /// Time to expire image attributes and remove from the database, in seconds. This should be >= expireImageAfter
   var expireImageAttributesAfter: TimeInterval
+  /// When decoding images, if no size is specified decode up to max/width height
   var maxDecodeWidthHeight: Float
+  /// When saving images to database, reduce the file size for any image greater than specified max width/height. Note: re-encoding to JPG is an expensive operation, so use a max width/height to limit conversions
   var maxSaveToDatabaseWidthHeight: Float
+  /// When maxSaveToDatabaseWidthHeight is exceeded, resize to specified max width/height, preserving aspect ratio
   var widthToResizeIfDatabaseMaxWidthHeightExceeded: Float
+  /// The number of simultaneous image requests
   var maxSimultaneousImageRequests: Int
+  /// Timeout interval for image downloads
   var timeoutIntervalForRequest: TimeInterval
+  /// An array of acceptable image content types, for example ["image/jpeg", "image/jpg", ...]
   var acceptableContentTypes: [String]
 }
 
+/// A unique ticket for an image request, used to cancel request
 public typealias ImageRequestTicket = String
 
+/// Closure when image request is completed
 public typealias ImageRequestCompletion = (_ result: ImageResponse) -> Void
 
 public enum ImageResponseCacheType {
@@ -48,10 +60,15 @@ public enum ImageResponseCacheType {
 
 public class ImageResponse {
   
+  /// The original requested URLString
   public var URLString: String
+  /// The original ticket for the request
   public var ticket: ImageRequestTicket
+  /// The image, or nil if there was an error
   public var image: UIImage?
+  /// The cache type, used to indicate an image that was returned from memory cache, database cache, or downloaded
   public var cacheType: ImageResponseCacheType
+  /// The error, if any, or nil
   public var error: Error?
   
   init(URLString: String, ticket: ImageRequestTicket, image: UIImage?, cacheType: ImageResponseCacheType = .none, error: Error? = nil) {
@@ -63,7 +80,13 @@ public class ImageResponse {
   }
 }
 
-class ImageResponseHandler {
+public enum YapImageManagerError: Error {
+  
+  /// Unable to decode image
+  case imageDecodeFailure
+}
+
+private class ImageResponseHandler {
   
   var ticket: ImageRequestTicket
   var completion: ImageRequestCompletion
@@ -78,7 +101,7 @@ class ImageResponseHandler {
   }
 }
 
-class ImageRequest: NSObject {
+private class ImageRequest: NSObject {
   
   var URLString: String = ""
   var progress: Progress?
@@ -88,12 +111,6 @@ class ImageRequest: NSObject {
   override var description: String {
     return URLString
   }
-}
-
-public enum YapImageManagerError: Error {
-  
-  /// Unable to decode image
-  case imageDecodeFailure
 }
 
 public class YapImageManager {
@@ -122,11 +139,14 @@ public class YapImageManager {
   private var imagesCache: NSCache<NSString, UIImage>?
   private var isReachable: Bool = false
 
+  // MARK: Initialization
+  
+  /// The default instance of YapImageManager
   static public let sharedInstance = YapImageManager()
   
-  // MARK: Initialization
-
+  /// Returns the default YapImageManager configuration
   public class func defaultConfiguration() -> YapImageManagerConfiguration {
+    
     let configuration = YapImageManagerConfiguration(
       databaseName: "YapImageManager.sqlite",
       attributesDatabaseName: "YapImageAttributes.sqlite",
@@ -142,6 +162,11 @@ public class YapImageManager {
     return configuration
   }
   
+  /// Initializes YapImageManager with the given configuration
+  ///
+  /// - parameter configuration: 'YapImageManagerConfiguration' used to create the instance
+  ///
+  /// - returns: The new 'YapImageManager' instance.
   init(configuration: YapImageManagerConfiguration = YapImageManager.defaultConfiguration()) {
 		
     func databasePath(withName name: String) -> String {
@@ -211,9 +236,29 @@ public class YapImageManager {
     reachabilityManager?.startListening()
   }
 
-  // MARK: Public image request methods
+  // MARK: Public methods
 
-  /// Request an image
+  /// Asynchronously requests an image for a given URLString. The image will be resized not to exceed ‘size’, if specified.
+  /// Otherwise, the image will be decoded up to ‘maxDecodeWidthHeight’ while preserving aspect ratio. The downloaded and
+  /// decoded image will be processed to apply any ‘filters’ specified. Image loading, decoding, and filtering is handled on
+  /// a background queue.
+  ///
+  /// Images not available in the database or memory cache will be added to the front of the queue (lifo), normally
+  /// corresponding to a user visible image. However, you can move any request to the front of the queue by calling
+  /// prioritizeImageRequest(). You can also cancel any request no longer needed using cancelImageRequest(). Images will
+  /// only be downloaded once regardless of the number of simultaneous requests.
+  ///
+  /// Once an image is downloaded, the original compressed image is stored in the database for fast retrieval. Images
+  /// exceeding ‘maxSaveToDatabaseWidthHeight’ will be reduced to ‘widthToResizeIfDatabaseMaxWidthHeightExceeded’ before
+  /// saving to the database. Additionally, decoded and filtered images are stored in a memory cache to improve scrolling
+  /// performance.
+  ///
+  /// - parameter forURLString:  The URL string for the request.
+  /// - parameter size:         The maximum image size to return. Defaults to ‘nil’.
+  /// - parameter filters:      An array of ‘YapImageFilter’ for any post-processing. Defaults to ‘nil’.
+  /// - parameter completion:   The closure to call when the download is complete.
+  ///
+  /// - returns: The 'ImageRequestTicket’ for the request.
   @discardableResult
   public func asyncImage(forURLString URLString: String, size: CGSize? = nil, filters: [YapImageFilter]? = [YapAspectFillFilter()], completion: @escaping ImageRequestCompletion) -> ImageRequestTicket {
 		let ticket: ImageRequestTicket = UUID().uuidString
@@ -283,7 +328,11 @@ public class YapImageManager {
 		return ticket
   }
 	
-	public func cancelImageRequest(forTicket ticket: ImageRequestTicket) {
+  /// Cancels the request and removes any response handlers. If the image is queued for download it will be removed. Active
+  /// requests are allowed to complete, however the response handler will not be called.
+  ///
+  /// - parameter forTicket: The ‘ImageRequestTicket’ to cancel.
+  public func cancelImageRequest(forTicket ticket: ImageRequestTicket) {
 		
 		let currentCount = queuedRequests.count
 
@@ -300,8 +349,13 @@ public class YapImageManager {
 		}
 	}
 	
-  /// Create a new image using image filters
-  public func createImage(with size: CGSize, filters: [YapImageFilter], completion: @escaping (_ image: UIImage?) -> Void) {
+  /// Asynchronously creates an image with the specified size and filters on a background queue. Useful for auto generating 
+  /// and caching gradients and image placeholders.
+  ///
+  /// - parameter withSize:    The size of the image to return.
+  /// - parameter filters:     An array of ‘YapImageFilter’ for processing the image.
+  /// - parameter completion:  The closure to call when the image is complete
+  public func createImage(withSize size: CGSize, filters: [YapImageFilter], completion: @escaping (_ image: UIImage?) -> Void) {
     
     let key = keyForImage(withURLString: nil, size: size, filters: filters)
     
@@ -326,8 +380,10 @@ public class YapImageManager {
     })
   }
 
-  /// Increase the priority of an image request
-  public func prioritizeImage(forURLString URLString: String) {
+  /// Moves any pending request for URLString to the front of the download queue.
+  ///
+  /// - parameter forURLtring:  The URL string for the request.
+  public func prioritizeImageRequest(forURLString URLString: String) {
 
     if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
       // move to end of list to bump priority, if not already downloading
@@ -337,7 +393,14 @@ public class YapImageManager {
     }
   }
   
-  /// Returns a sized and filtered image from the image cache, if available
+  /// Returns the fully decoded and filtered image from the memory cache, or nil if not available. The method is safe to use 
+  /// on the main thread while scrolling.
+  ///
+  /// - parameter forURLtring:  The URL string for the request.
+  /// - parameter size:         The maximum image size to return. Defaults to ‘nil’.
+  /// - parameter filters:      An array of ‘YapImageFilter’ for any post-processing. Defaults to ‘nil’.
+  ///
+  /// - returns: The ‘UIImage’ stored in the memory cache, or nil if not available
   public func cachedImage(forURLString URLString: String, size: CGSize? = nil, filters: [YapImageFilter]? = [YapAspectFillFilter()]) -> UIImage? {
 
     let key = keyForImage(withURLString: URLString, size: size, filters: filters)
@@ -348,8 +411,13 @@ public class YapImageManager {
     return nil
   }
 
-  /// Returns full sized, original image directly from the database if available, otherwise nil
-  /// This method is synchronous, so not recommened for use during scrolling
+  /// Returns the original image cached in the database, or nil if not available. This method is synchronous and does not 
+  /// return a decoded image. For best performance, do not use this while scrolling images on the main thread. Use 
+  /// asyncImage() instead to avoid stuttering.
+  ///
+  /// - parameter forURLString: The URL string for the image
+  ///
+  /// - returns: The ‘UIImage’ stored in the database, or nil if not available
   public func databaseImage(forURLString URLString: String) -> UIImage? {
     if let imageData = databaseImageData(forURLString: URLString) {
       return UIImage(data: imageData, scale: UIScreen.main.scale)
@@ -357,8 +425,12 @@ public class YapImageManager {
     return nil
   }
   
-  /// Returns full sized, original image data directly from the database if available, otherwise nil
-  /// This method is synchronous, so not recommened for use during scrolling
+  /// Returns the original image data cached in the database, or nil if not available. For best performance, do not use this
+  /// while scrolling on the main thread.
+  ///
+  /// - parameter forURLString: The URL string for the image
+  ///
+  /// - returns: The ‘Data’ stored in the database, or nil if not available
   public func databaseImageData(forURLString URLString: String) -> Data? {
     // check the database
     var imageData: Data? = nil
@@ -368,8 +440,12 @@ public class YapImageManager {
     return imageData
   }
 
-  /// Returns the Progress for an active download request, or nil if not available
-  /// Progress is available after YapImageManagerImageWillBeginDownloadingNotification
+  /// Returns the ‘Progress’ for an active download request, or nil if not available. Progress is available after a 
+  /// notification has been posted with the name ‘YapImageManagerImageWillBeginDownloadingNotification’
+  ///
+  /// - parameter forURLString: The URL string for the image
+  ///
+  /// - returns: The ‘Progress’ for the download request, or nil if not available.
   public func downloadProgress(forURLString URLString: String) -> Progress? {
     if let imageRequest = self.activeImageRequest(forURLString: URLString) {
       return imageRequest.progress
@@ -380,7 +456,7 @@ public class YapImageManager {
   
   // MARK: Image queue
 
-  func queueImage(forURLString URLString: String, response: ImageResponseHandler) {
+  private func queueImage(forURLString URLString: String, response: ImageResponseHandler) {
     
     if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
       // move to end of list to bump priority, if not already downloading
@@ -398,27 +474,27 @@ public class YapImageManager {
     processImageQueue()
   }
   
-  func isImageQueued(forURLString URLString: String) -> Bool {
+  private func isImageQueued(forURLString URLString: String) -> Bool {
     
     // NOTE: Active imageRequests remain on downloadQueue, so it's only necessary to check downloadQueue
     let foundItem: ImageRequest? = queuedImageRequest(forURLString: URLString)
     return (foundItem != nil)
   }
   
-  func queuedImageRequest(forURLString URLString: String) -> ImageRequest? {
+  private func queuedImageRequest(forURLString URLString: String) -> ImageRequest? {
     
     let items = queuedRequests.filter { $0.URLString == URLString }
     return items.first
   }
   
-  func removeQueuedImageRequest(forURLString URLString: String) {
+  private func removeQueuedImageRequest(forURLString URLString: String) {
     
     if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
       queuedRequests.remove(at: index)
     }
   }
   
-  func nextImageRequest() -> ImageRequest? {
+  private func nextImageRequest() -> ImageRequest? {
     
     if let nextRequest = queuedRequests.last {
       if let _ = activeImageRequest(forURLString: nextRequest.URLString) {
@@ -430,18 +506,18 @@ public class YapImageManager {
     return nil
   }
 	
-	func activeImageRequest(forURLString URLString: String) -> ImageRequest? {
+	private func activeImageRequest(forURLString URLString: String) -> ImageRequest? {
     
 		let requests = activeRequests.filter { $0.URLString == URLString }
 		return requests.first
 	}
 	
-	// Returns true if active requests have not exceeded max simultaneous requests
-	func isReadyForRequest() -> Bool {
+	/// Returns true if active requests have not exceeded max simultaneous requests
+	private func isReadyForRequest() -> Bool {
 		return ((activeRequests.count < configuration.maxSimultaneousImageRequests) && isReachable)
 	}
 	
-  func processImageQueue() {
+  private func processImageQueue() {
     
     guard isReadyForRequest()  else { return }
     
@@ -458,7 +534,7 @@ public class YapImageManager {
 
   // MARK: - Image download
 
-  func downloadImage(forRequest imageRequest: ImageRequest) {
+  private func downloadImage(forRequest imageRequest: ImageRequest) {
     
     let request = sessionManager.request(imageRequest.URLString)
       .validate(contentType: configuration.acceptableContentTypes)
@@ -580,7 +656,7 @@ public class YapImageManager {
     NotificationCenter.default.post(name: YapImageManagerImageWillBeginDownloadingNotification, object: self, userInfo: userInfo)
   }
   
-  func saveImageToDatabase(_ imageData: Data, forURLString URLString: String) {
+  private func saveImageToDatabase(_ imageData: Data, forURLString URLString: String) {
     
     let downloadTimestamp = Date()
     pendingWritesDict[keyForImage(withURLString: URLString)] = imageData
@@ -608,7 +684,7 @@ public class YapImageManager {
   
   // MARK: Image filters
   
-  func filteredImage(forImage image: UIImage, resizedTo size: CGSize? = nil, filters: [YapImageFilter]? = nil) -> UIImage? {
+  private func filteredImage(forImage image: UIImage, resizedTo size: CGSize? = nil, filters: [YapImageFilter]? = nil) -> UIImage? {
     
     var filteredImage: UIImage?
     
@@ -626,7 +702,7 @@ public class YapImageManager {
     return filteredImage
   }
   
-  func filteredImage(forImage image: UIImage?, size: CGSize, filters: [YapImageFilter]? = nil) -> UIImage? {
+  private func filteredImage(forImage image: UIImage?, size: CGSize, filters: [YapImageFilter]? = nil) -> UIImage? {
     
     var aspectFillImage: UIImage?
     UIGraphicsBeginImageContextWithOptions(size, false, UIScreen.main.scale)
@@ -758,7 +834,7 @@ public class YapImageManager {
   
   // MARK: Database cleanup
 
-  func vacuumDatabaseIfNeeded() {
+  private func vacuumDatabaseIfNeeded() {
     
     if backgroundDatabaseConnection.pragmaAutoVacuum() == "NONE" {
       // We don't vacuum right away.
@@ -772,7 +848,7 @@ public class YapImageManager {
     }
   }
   
-  func removeExpiredImages() {
+  private func removeExpiredImages() {
     DispatchQueue.main.async(execute: {() -> Void in
       var imageDeleteKeys = [String]()
       var imageAttributeDeleteKeys = [String]()
@@ -811,7 +887,7 @@ public class YapImageManager {
     })
   }
   
-  func validateDatabaseIntegrity() {
+  private func validateDatabaseIntegrity() {
     var imageKeys = Set<String>()
     var imageAttributeKeys = Set<String>()
     databaseConnection.read({ transaction in
