@@ -16,6 +16,7 @@
 		B514851B1EC38A32008BAC3C /* ImageCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51485181EC38A32008BAC3C /* ImageCell.swift */; };
 		B514851C1EC38A32008BAC3C /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51485191EC38A32008BAC3C /* ViewController.swift */; };
 		B514851E1EC38C55008BAC3C /* YapImageManager.podspec in Resources */ = {isa = PBXBuildFile; fileRef = B514851D1EC38C55008BAC3C /* YapImageManager.podspec */; };
+		B55523051EEB3E590087C1D2 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = B55523041EEB3E590087C1D2 /* README.md */; };
 		CFFCEAC18543132F438CFF0C /* Pods_YapImageManagerExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F475EA4D5561CB8D28D122AC /* Pods_YapImageManagerExample.framework */; };
 /* End PBXBuildFile section */
 
@@ -31,6 +32,7 @@
 		B51485181EC38A32008BAC3C /* ImageCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ImageCell.swift; path = Example/Source/ImageCell.swift; sourceTree = "<group>"; };
 		B51485191EC38A32008BAC3C /* ViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ViewController.swift; path = Example/Source/ViewController.swift; sourceTree = "<group>"; };
 		B514851D1EC38C55008BAC3C /* YapImageManager.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; fileEncoding = 4; path = YapImageManager.podspec; sourceTree = "<group>"; };
+		B55523041EEB3E590087C1D2 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		D02DC0629ACD405A00BE4F3C /* Pods-YapImageManagerExample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YapImageManagerExample.release.xcconfig"; path = "Pods/Target Support Files/Pods-YapImageManagerExample/Pods-YapImageManagerExample.release.xcconfig"; sourceTree = "<group>"; };
 		F475EA4D5561CB8D28D122AC /* Pods_YapImageManagerExample.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_YapImageManagerExample.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -59,6 +61,7 @@
 		B51484C01EBAA562008BAC3C = {
 			isa = PBXGroup;
 			children = (
+				B55523041EEB3E590087C1D2 /* README.md */,
 				B514851D1EC38C55008BAC3C /* YapImageManager.podspec */,
 				B51484EC1EBAB335008BAC3C /* Podfile */,
 				B51485171EC38A32008BAC3C /* AppDelegate.swift */,
@@ -229,6 +232,7 @@
 			files = (
 				B514851C1EC38A32008BAC3C /* ViewController.swift in Sources */,
 				B514851A1EC38A32008BAC3C /* AppDelegate.swift in Sources */,
+				B55523051EEB3E590087C1D2 /* README.md in Sources */,
 				B514851B1EC38A32008BAC3C /* ImageCell.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

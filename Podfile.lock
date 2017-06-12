@@ -71,7 +71,7 @@ PODS:
     - YapDatabase/Standard/Core
   - YapDatabase/Standard/Extensions/View (3.0):
     - YapDatabase/Standard/Core
-  - YapImageManager (1.0.0):
+  - YapImageManager (1.0.1):
     - Alamofire (= 4.4.0)
     - CocoaLumberjack/Swift (= 3.1.0)
     - YapDatabase (= 3.0)
@@ -93,7 +93,7 @@ SPEC CHECKSUMS:
   CocoaLumberjack: 8311463ddf9ee86a06ef92a071dd656c89244500
   PromiseKit: 779f2e41faf62d854e7593026ddbcb0bb5c5002d
   YapDatabase: 0cef6c79948169c924ae325d430ffcfa8a5231c2
-  YapImageManager: cb1e5423e2fd34f0fd69015eda2f699de793e162
+  YapImageManager: d921d3ed869c450f6a7e5e696da9836f587d5fc8
 
 PODFILE CHECKSUM: 084d91401ea12451b6d35bf1a1a1b55845717ec5
 

@@ -50,7 +50,7 @@ class ViewController: UIViewController {
     let imageWidth = view.bounds.width - 2.0 * inset
     flowLayout.itemSize = CGSize(width: imageWidth, height: (9.0 / 16.0 * imageWidth).rounded())
     collectionView = UICollectionView(frame: self.view.bounds, collectionViewLayout: flowLayout)
-    collectionView!.contentInset = UIEdgeInsetsMake(80.0, 0.0, inset, 0.0)
+    collectionView!.contentInset = UIEdgeInsetsMake(30.0, 0.0, inset, 0.0)
     collectionView!.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     collectionView!.dataSource = self
     collectionView!.backgroundColor = .clear
