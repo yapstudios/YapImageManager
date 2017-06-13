@@ -6,18 +6,19 @@
 [![Twitter](https://img.shields.io/badge/twitter-@yapstudios-blue.svg?style=flat)](http://twitter.com/yapstudios)
 
 ## Features
-- [x] Asyncronous image downloader with priority queuing
-- [x] Advanced memory and database caching using YapDatabase (SQLite)
+- [x] Asynchronous image downloader with priority queuing
+- [x] Advanced memory and database caching using [YapDatabase](https://github.com/yapstudios/YapDatabase) (SQLite)
 - [x] Guarantee of only one image download per request
 - [x] Cancellation of pending requests with ticket
 - [x] Background image decoding, resizing and filtering
 - [x] Custom image filters
 - [x] Image rendering of gradients and more using filters
 - [x] High performance scrolling
+- [x] Automatic pause and resume of download queue on reachability changes
 - [x] Written completely in Swift
 
 ## Roadmap Features
-- [x] Ability to capture image height and width from the raw decoded image data stream, **before the image is downloaded** via a notification, for gif, png, and jpeg formats. This is extrememly useful for displaying full width images with the proper aspect ratio in a table view, by enabling you to calculate the cell height and update the table view layout almost immediately while the visible images are downloading.
+- [x] Ability to capture image height and width from the raw decoded image data stream, **before the image is downloaded** via a notification, for gif, png, and jpeg formats. This is extrememly useful for displaying full width images with the proper aspect ratio in a table view or collection view, by enabling you to calculate the cell height and update the layout almost immediately while the visible images are downloading.
 - [x] Ability to return an image with the first frame of a GIF before the entire GIF is downloaded.
 - [x] Ability to convert GIFs to MP4 files for better memory managment and scrolling performance
 
@@ -27,6 +28,23 @@
 - iOS 10.0+ / tvOS 9.0+
 - Xcode 8.0+
 - Swift 3.0+
+
+## Installation
+
+### CocoaPods
+
+YapImageManager supports [CocoaPods](http://cocoapods.org) for easy installation. Below is a sample podfile.
+
+```
+source 'https://github.com/CocoaPods/Specs.git'
+platform :ios, '9.0'
+use_frameworks!
+
+target '<Your Target Name>' do
+    pod 'YapImageManager', '~> 1.0.2'
+end
+
+```
 
 ## Usage
 
@@ -136,7 +154,7 @@ Below is the example output.
 
 ## Credits
 
-YapImageManager is owned and maintained by the [Yap Studios](http://www.yapstudios.com).
+YapImageManager is owned and maintained by [Yap Studios](http://www.yapstudios.com).
 
 
 
