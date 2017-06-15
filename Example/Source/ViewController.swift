@@ -9,7 +9,9 @@
 import UIKit
 import Alamofire
 
-let ImgurAPIClientId = "Client-ID fe5b53eb29bf6c4"
+// This is a test Imgur app created for the example app and may be rate limited. Replace this with your own at the following URL:
+// https://api.imgur.com/oauth2/addclient
+let ImgurAPIClientId = "Client-ID e217e987f703b46"
 
 class ViewController: UIViewController {
   fileprivate var collectionView: UICollectionView?

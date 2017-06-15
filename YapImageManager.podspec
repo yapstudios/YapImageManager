@@ -1,9 +1,9 @@
 Pod::Spec.new do |s|
   s.name         = "YapImageManager"
-  s.version      = "1.0.1"
+  s.version      = "1.0.2"
   s.summary      = "Yap Studios Image Manager Framework"
   s.homepage     = "http://yapstudios.com/"
-  s.license      = 'MIT'
+  s.license      = 'BSD'
 
 	s.author = {
 		"Yap Studios" => "contact@yapstudios.com"
