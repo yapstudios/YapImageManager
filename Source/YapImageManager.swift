@@ -413,7 +413,20 @@ public class YapImageManager {
     }
   }
   
-  /// Returns the fully decoded and filtered image from the memory cache, or nil if not available. The method is safe to use 
+  /// Moves any pending request for URLString to the back of the download queue.
+  ///
+  /// - parameter forURLtring:  The URL string for the request.
+  public func deprioritizeImageRequest(forURLString URLString: String) {
+    
+    if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
+      // move to end of list to bump priority, if not already downloading
+      queuedRequests.remove(at: index)
+      queuedRequests.insert(foundItem, at: 0)
+      DDLogVerbose("Decreasing priority for download \(URLString)")
+    }
+  }
+  
+  /// Returns the fully decoded and filtered image from the memory cache, or nil if not available. The method is safe to use
   /// on the main thread while scrolling.
   ///
   /// - parameter forURLtring:  The URL string for the request.
