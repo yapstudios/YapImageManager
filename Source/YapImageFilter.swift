@@ -240,4 +240,22 @@ public class YapOverlayImageFilter: YapImageFilter {
   }
 }
 
+/// Adds a circle clip path, which will apply to all subsequent filters.
+public class YapCircleClip: YapImageFilter {
+	
+	/// A unique key for this filter, used for caching to memory
+	public var key = "Circle"
+	
+	public init() {}
+	
+	public func draw(inContext context: CGContext, image: UIImage?, rect: CGRect, imageRect: CGRect) -> Void {
+		
+		let fitDimension = min(imageRect.size.width, imageRect.size.height)
+		let circleClip = CGSize(width: fitDimension, height: fitDimension)
+		let radius = fitDimension / 2.0
+		context.addEllipse(in: CGRect(origin: CGPoint(x: (imageRect.origin.x + imageRect.size.width / 2 - radius).rounded(), y: CGFloat(0.0)), size: circleClip).insetBy(dx: CGFloat(0.5), dy: CGFloat(0.5)))
+		context.clip()
+	}
+}
+
 
