@@ -1,5 +1,4 @@
-# YapImageManager
-
+![YapImageManagerLogo](Docs/header.gif)
 [![Build Status](https://travis-ci.org/yapstudios/YapImageManager.svg?branch=master)](https://travis-ci.org/YapImageManager/YapImageManager)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/YapImageManager.svg)](https://img.shields.io/cocoapods/v/YapImageManager.svg)
 [![Platform](https://img.shields.io/cocoapods/p/YapImageManager.svg?style=flat)](http://cocoadocs.org/docsets/YapImageManager)
