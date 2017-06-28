@@ -124,7 +124,7 @@ You can create your own custom filters by adopting the protocol `YapImageFilter`
 Below is an example of adding a gradient overlay to an image. When using filters, be sure at least one filter renders the original image, for example using `YapAspectFillFilter`.
 
 ```
-  let filters: [YapImageFilter] = [YapAspectFillFilter(), YapGradientFilter(startColor: .clear, endColor: UIColor.black.withAlphaComponent(0.5))]
+  let filters: [YapImageFilter] = [YapAspectFillFilter(), YapGradientFilter(startColor: UIColor.black.withAlphaComponent(0.5), endColor: .clear)]
   YapImageManager.sharedInstance.asyncImage(forURLString: URLString, size: self.bounds.size, filters: filters) { [weak self] response in
     if let image = response.image {
       self?.imageView.image = image
@@ -141,7 +141,8 @@ Below is the example output.
 To render a new image using filters, use the `createImage` method passing in the desired size and an array of `YapImageFilter`. The following example generates a simple overlay gradient.
 
 ```
-  let gradient = YapGradientFilter(startColor: .clear, endColor: UIColor.black.withAlphaComponent(0.8))    
+  let red = UIColor(red: 0.93, green:0.09, blue:0.31, alpha:1.0)
+  let gradient = YapGradientFilter(startColor: red, endColor: .clear)    
   YapImageManager.sharedInstance.createImage(withSize: self.bounds.size, filters: [gradient]) { [weak self] image in
     self?.imageView.image = image
   }
