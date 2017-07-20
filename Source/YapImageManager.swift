@@ -78,6 +78,11 @@ public enum ImageResponseCacheType {
   case databaseCache
 }
 
+public enum ImageEncodeType {
+	case JPEG
+	case PNG
+}
+
 public class ImageResponse {
   
   /// The original requested URLString
@@ -130,6 +135,35 @@ private class ImageRequest: NSObject {
   
   override var description: String {
     return URLString
+  }
+}
+
+class ImageMetadata: NSObject, NSCoding {
+  
+  var created: Date
+  var expires: Date?
+  
+  init(created: Date, expires: Date? = nil) {
+    
+    self.created = created
+    self.expires = expires
+  }
+  
+  func encode(with coder: NSCoder) {
+    coder.encode(created, forKey: "created")
+    coder.encode(expires, forKey: "expires")
+  }
+  
+  required init?(coder decoder: NSCoder) {
+    
+    guard
+      let created = decoder.decodeObject(forKey: "created") as? Date,
+      let expires = decoder.decodeObject(forKey: "expires") as? Date
+      else {
+        return nil
+    }
+    self.created = created
+    self.expires = expires
   }
 }
 
@@ -402,7 +436,7 @@ public class YapImageManager {
 
   /// Moves any pending request for URLString to the front of the download queue.
   ///
-  /// - parameter forURLtring:  The URL string for the request.
+  /// - parameter forURLString:  The URL string for the request.
   public func prioritizeImageRequest(forURLString URLString: String) {
 
     if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
@@ -415,7 +449,7 @@ public class YapImageManager {
   
   /// Moves any pending request for URLString to the back of the download queue.
   ///
-  /// - parameter forURLtring:  The URL string for the request.
+  /// - parameter forURLString:  The URL string for the request.
   public func deprioritizeImageRequest(forURLString URLString: String) {
     
     if let foundItem = queuedImageRequest(forURLString: URLString), let index = queuedRequests.index(of: foundItem) {
@@ -486,7 +520,86 @@ public class YapImageManager {
       return nil
     }
   }
-  
+	
+  /// Save an image directly to the database using URLString as the key. This can be used to pre-load images into the
+  /// database. It can also be used to persist images, like thumbnails, generated from downloaded images in the closure
+  /// of an asyncImage(forURLString:size:filters:completion) call.
+  ///
+  /// - parameter forURLString: The URL string for the image. This can also be a unique key or UUID.
+  /// - parameter image: The image to save
+  /// - parameter encodeType: The data format to use for encoding, specified by 'ImageEncodeType' of .JPEG or .PNG.
+  /// - parameter completion:  The closure to call when the image is saved
+  public func saveImage(forURLString URLString: String, image: UIImage, encodeType: ImageEncodeType = .JPEG, completion: @escaping (Bool) -> Void) {
+    
+    self.imageDecodeQueue.async(execute: {() -> Void in
+      
+      var imageData: Data? = nil
+      let scale: CGFloat = UIScreen.main.scale
+      let imageSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+      
+      // encode the image
+      switch encodeType {
+      case .JPEG:
+        imageData = UIImageJPEGRepresentation(image, 0.8)
+      case .PNG:
+        imageData = UIImagePNGRepresentation(image)
+      }
+
+      if let imageData = imageData {
+        // dispatch next request on main thread
+        DispatchQueue.main.async(execute: {() -> Void in
+          
+          // save image and image attributes without expiration
+          self.saveImageToDatabase(imageData, forURLString: URLString)
+          self.updateImageAttributes(with: imageSize, forURLString: URLString)
+          
+          // call completion block
+          completion(true)
+        })
+      } else {
+        completion(false) // failed to encode image
+      }
+    })
+  }
+
+  /// Remove the expiration for the image with URLString. The image will not be removed from the database without an explict
+  /// call to deleteImage(forURLString:completion:).
+  ///
+  /// - parameter forURLString: The URL string for the image
+  /// - parameter completion:  The closure to call when the image is deleted
+  public func persistImage(forURLString URLString: String) {
+
+    backgroundDatabaseConnection.asyncReadWrite({ transaction in
+      if let metadata = transaction.metadata(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? ImageMetadata {
+        transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection)
+      }
+    }, completionBlock: nil)
+
+    backgroundAttributesDatabaseConnection.asyncReadWrite({ transaction in
+      if let metadata = transaction.metadata(forKey: URLString, inCollection: YapImageManagerImageAttributesCollection) as? ImageMetadata {
+        transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: URLString, inCollection: YapImageManagerImageAttributesCollection)
+      }
+    }, completionBlock: nil)
+  }
+
+  /// Delete the image with URLString.
+  ///
+  /// - parameter forURLString: The URL string for the image
+  public func deleteImage(forURLString URLString: String, completion: @escaping () -> Void) {
+
+    self.backgroundDatabaseConnection.asyncReadWrite({ transaction  in
+      // remove image
+      transaction.removeObject(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection)
+    }, completionBlock: {() -> Void in
+      // remove image attributes
+      self.backgroundAttributesDatabaseConnection.asyncReadWrite( { transaction in
+        transaction.removeObject(forKey: URLString, inCollection: YapImageManagerImageAttributesCollection)
+      }, completionBlock: {() -> Void in
+        completion()
+      })
+    })
+  }
+
   // MARK: Image queue
 
   private func queueImage(forURLString URLString: String, response: ImageResponseHandler) {
@@ -611,7 +724,7 @@ public class YapImageManager {
               // write the image attributes, if necessary
               if shouldUpdateImageAttributes {
                 DDLogVerbose("Update image attributes \(imageRequest.URLString)")
-                self.updateImageAttributes(with: imageSize, forURLString: imageRequest.URLString)
+                self.updateImageAttributes(with: imageSize, forURLString: imageRequest.URLString, expiresAfter: self.configuration.expireImageAttributesAfter)
               }
               
               // decode all images and save to cache
@@ -635,7 +748,7 @@ public class YapImageManager {
                 imageRequest.progress = nil
                 self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
                 if let imageData = imageData {
-                  self.saveImageToDatabase(imageData, forURLString: imageRequest.URLString)
+                  self.saveImageToDatabase(imageData, forURLString: imageRequest.URLString, expiresAfter: self.configuration.expireImagesAfter)
                 }
                 
                 // call completion blocks
@@ -689,13 +802,15 @@ public class YapImageManager {
     NotificationCenter.default.post(name: YapImageManagerImageWillBeginDownloadingNotification, object: self, userInfo: userInfo)
   }
   
-  private func saveImageToDatabase(_ imageData: Data, forURLString URLString: String) {
+  private func saveImageToDatabase(_ imageData: Data, forURLString URLString: String, expiresAfter: TimeInterval? = nil) {
     
-    let downloadTimestamp = Date()
+    let created = Date()
+    let expires: Date? = expiresAfter != nil ? created.addingTimeInterval(expiresAfter!) : nil
+    let imageMetadata = ImageMetadata(created: created, expires: expires)
     pendingWritesDict[keyForImage(withURLString: URLString)] = imageData
     
     backgroundDatabaseConnection.asyncReadWrite ({ transaction in
-      transaction.setObject(imageData, forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection, withMetadata: downloadTimestamp)
+      transaction.setObject(imageData, forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection, withMetadata: imageMetadata)
     }, completionBlock: { () -> Void in
       self.pendingWritesDict.removeValue(forKey: self.keyForImage(withURLString: URLString))
       DDLogVerbose("Save image to database \(URLString)")
@@ -833,17 +948,20 @@ public class YapImageManager {
     }
   }
   
-  func setImageAttributes(_ imageAttributes: NSDictionary, forURLString URLString: String) {
+  func setImageAttributes(_ imageAttributes: NSDictionary, forURLString URLString: String, expiresAfter: TimeInterval? = nil) {
     attributesCache?.setObject(imageAttributes, forKey: URLString as NSString)
     postImageAttributesNotification(imageAttributes, forURLString: URLString)
     // save to database
-    let downloadTimestamp = Date()
+    let created = Date()
+    let expires: Date? = expiresAfter != nil ? created.addingTimeInterval(expiresAfter!) : nil
+    let attributesMetadata = ImageMetadata(created: created, expires: expires)
+
     backgroundAttributesDatabaseConnection.asyncReadWrite({ transaction in
-      transaction.setObject(imageAttributes, forKey: URLString, inCollection: YapImageManagerImageAttributesCollection, withMetadata: downloadTimestamp)
+      transaction.setObject(imageAttributes, forKey: URLString, inCollection: YapImageManagerImageAttributesCollection, withMetadata: attributesMetadata)
     }, completionBlock: nil)
   }
   
-  func updateImageAttributes(with size: CGSize, forURLString URLString: String) {
+  func updateImageAttributes(with size: CGSize, forURLString URLString: String, expiresAfter: TimeInterval? = nil) {
     if let imageAttributes = self.imageAttributes(forURLString: URLString) {
       if
         let width = imageAttributes["image_width"] as? NSNumber,
@@ -855,13 +973,13 @@ public class YapImageManager {
           let updatedAttributes = NSMutableDictionary(dictionary: imageAttributes)
           updatedAttributes["image_width"] = Int(size.width)
           updatedAttributes["image_height"] = Int(size.height)
-          setImageAttributes(updatedAttributes, forURLString: URLString)
+          setImageAttributes(updatedAttributes, forURLString: URLString, expiresAfter: expiresAfter)
         }
       }
     } else {
       // no image attribute data exists, so set size and width and save to database
       let imageAttributes = ["image_width": Int(size.width), "image_height": Int(size.height)] as NSDictionary
-      setImageAttributes(imageAttributes, forURLString: URLString)
+      setImageAttributes(imageAttributes, forURLString: URLString, expiresAfter: expiresAfter)
     }
   }
   
@@ -883,40 +1001,50 @@ public class YapImageManager {
   
   private func removeExpiredImages() {
     DispatchQueue.main.async(execute: {() -> Void in
+      
+      // fetch the expired images
       var imageDeleteKeys = [String]()
-      var imageAttributeDeleteKeys = [String]()
-      self.attributesDatabaseConnection.read({ transaction in
-        
-        transaction.enumerateKeysAndMetadata(inCollection: YapImageManagerImageAttributesCollection, using: { (key: String, metadata: Any?, stop: UnsafeMutablePointer<ObjCBool>) in
-          if let created = metadata as? NSDate {
-            let timeSince: TimeInterval = -created.timeIntervalSinceNow
-            if timeSince > self.configuration.expireImagesAfter {
+      self.databaseConnection.read({ transaction in
+        transaction.enumerateKeysAndMetadata(inCollection: YapImageManagerImageCollection, using: { (key: String, metadata: Any?, stop: UnsafeMutablePointer<ObjCBool>) in
+          if let imageMetadata = metadata as? ImageMetadata, let expires = imageMetadata.expires {
+            let timeSince = -expires.timeIntervalSinceNow
+            if timeSince > 0 {
               DDLogVerbose("Remove expired image \(key)")
               imageDeleteKeys.append(key)
             }
-            if timeSince > self.configuration.expireImageAttributesAfter {
-              DDLogVerbose("Remove expired attributes \(key)")
+          }
+        })
+      })
+      
+      // fetch the expired image attributes
+      var imageAttributeDeleteKeys = [String]()
+      self.attributesDatabaseConnection.read({ transaction in
+        transaction.enumerateKeysAndMetadata(inCollection: YapImageManagerImageAttributesCollection, using: { (key: String, metadata: Any?, stop: UnsafeMutablePointer<ObjCBool>) in
+          if let attributesMetadata = metadata as? ImageMetadata, let expires = attributesMetadata.expires {
+            let timeSince = -expires.timeIntervalSinceNow
+            if timeSince > 0 {
+              DDLogVerbose("Remove expired image attributes \(key)")
               imageAttributeDeleteKeys.append(key)
             }
           }
         })
-        
-        // remove expired images and images, images first so you never end up with images without attributes
-        self.backgroundDatabaseConnection.asyncReadWrite({ transaction  in
-          // remove images
-          transaction.removeObjects(forKeys: imageDeleteKeys, inCollection: YapImageManagerImageCollection)
-        }, completionBlock: {() -> Void in
-          // remove image attributes after removing images has completed
-          self.backgroundAttributesDatabaseConnection.asyncReadWrite( { transaction in
-            transaction.removeObjects(forKeys: imageAttributeDeleteKeys, inCollection: YapImageManagerImageAttributesCollection)
-          }, completionBlock: {() -> Void in
-            // DEBUG
-            //[self validateDatabaseIntegrity];
-          })
-        })
-        // DEBUG
-        //[self validateDatabaseIntegrity];
       })
+      
+      // remove expired images and attributes, images first so you never end up with images without attributes
+      self.backgroundDatabaseConnection.asyncReadWrite({ transaction  in
+        // remove images
+        transaction.removeObjects(forKeys: imageDeleteKeys, inCollection: YapImageManagerImageCollection)
+      }, completionBlock: {() -> Void in
+        // remove image attributes after removing images has completed
+        self.backgroundAttributesDatabaseConnection.asyncReadWrite( { transaction in
+          transaction.removeObjects(forKeys: imageAttributeDeleteKeys, inCollection: YapImageManagerImageAttributesCollection)
+        }, completionBlock: {() -> Void in
+          // DEBUG
+          //[self validateDatabaseIntegrity];
+        })
+      })
+      // DEBUG
+      //[self validateDatabaseIntegrity];
     })
   }
   
