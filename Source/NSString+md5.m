@@ -2,7 +2,7 @@
 #import <CommonCrypto/CommonHMAC.h>
 
 
-@implementation NSString (Yap)
+@implementation NSString (md5)
 
 - (NSString *)md5Hash
 {

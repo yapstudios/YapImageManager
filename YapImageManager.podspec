@@ -22,6 +22,6 @@ Pod::Spec.new do |s|
   
   s.dependency 'Alamofire', '4.4.0'
   s.dependency 'CocoaLumberjack/Swift', '3.1.0'
-  s.dependency 'YapDatabase', '3.0'
+  s.dependency 'YapDatabase', '3.0.1'
   
 end

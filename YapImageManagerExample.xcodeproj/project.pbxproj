@@ -11,12 +11,10 @@
 		B51485131EC38A0B008BAC3C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B514850D1EC38A0B008BAC3C /* Assets.xcassets */; };
 		B51485141EC38A0B008BAC3C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B514850E1EC38A0B008BAC3C /* LaunchScreen.storyboard */; };
 		B51485151EC38A0B008BAC3C /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B51485101EC38A0B008BAC3C /* Main.storyboard */; };
-		B51485161EC38A0B008BAC3C /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = B51485121EC38A0B008BAC3C /* Info.plist */; };
 		B514851A1EC38A32008BAC3C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51485171EC38A32008BAC3C /* AppDelegate.swift */; };
 		B514851B1EC38A32008BAC3C /* ImageCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51485181EC38A32008BAC3C /* ImageCell.swift */; };
 		B514851C1EC38A32008BAC3C /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51485191EC38A32008BAC3C /* ViewController.swift */; };
 		B514851E1EC38C55008BAC3C /* YapImageManager.podspec in Resources */ = {isa = PBXBuildFile; fileRef = B514851D1EC38C55008BAC3C /* YapImageManager.podspec */; };
-		B55523051EEB3E590087C1D2 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = B55523041EEB3E590087C1D2 /* README.md */; };
 		CFFCEAC18543132F438CFF0C /* Pods_YapImageManagerExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F475EA4D5561CB8D28D122AC /* Pods_YapImageManagerExample.framework */; };
 /* End PBXBuildFile section */
 
@@ -170,7 +168,6 @@
 				B514851E1EC38C55008BAC3C /* YapImageManager.podspec in Resources */,
 				B51485131EC38A0B008BAC3C /* Assets.xcassets in Resources */,
 				B51484ED1EBAB335008BAC3C /* Podfile in Resources */,
-				B51485161EC38A0B008BAC3C /* Info.plist in Resources */,
 				B51485151EC38A0B008BAC3C /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -232,7 +229,6 @@
 			files = (
 				B514851C1EC38A32008BAC3C /* ViewController.swift in Sources */,
 				B514851A1EC38A32008BAC3C /* AppDelegate.swift in Sources */,
-				B55523051EEB3E590087C1D2 /* README.md in Sources */,
 				B514851B1EC38A32008BAC3C /* ImageCell.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
