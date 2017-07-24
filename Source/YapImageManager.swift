@@ -190,9 +190,9 @@ public class YapImageManager {
   init(configuration: YapImageManagerConfiguration = YapImageManager.defaultConfiguration()) {
 		
     func databasePath(withName name: String) -> String {
-      let paths: [Any] = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true)
-      let databaseDir: String? = (paths.count > 0) ? (paths[0] as? String) : NSTemporaryDirectory()
-      return URL(fileURLWithPath: databaseDir!).appendingPathComponent(name).absoluteString
+			let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+			let databaseDir = (paths.count > 0) ? (paths[0]) : NSTemporaryDirectory()
+			return databaseDir + "/" + name
     }
     
     self.configuration = configuration
