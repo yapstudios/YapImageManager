@@ -561,39 +561,70 @@ public class YapImageManager {
 			}
 		})
 	}
-	
-	/// Remove the expiration for the image with URLString. The image will not be removed from the database without an explict
-	/// call to deleteImage(forURLString:completion:).
+
+	/// Remove the expiration for the image with URLString. The image will be persisted and not removed from the database
+	/// without an explict call to deleteImage(forURLString:completion:).
 	///
 	/// - parameter forURLString: The URL string for the image
-	/// - parameter completion:  The closure to call when the image is deleted
-	public func persistImage(forURLString URLString: String) {
-		
-		backgroundDatabaseConnection.asyncReadWrite({ transaction in
-			if let metadata = transaction.metadata(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? ImageMetadata {
-				transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection)
-			}
-		}, completionBlock: nil)
-		
-		backgroundAttributesDatabaseConnection.asyncReadWrite({ transaction in
-			if let metadata = transaction.metadata(forKey: URLString, inCollection: YapImageManagerImageAttributesCollection) as? ImageMetadata {
-				transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: URLString, inCollection: YapImageManagerImageAttributesCollection)
-			}
-		}, completionBlock: nil)
+	/// - parameter completion:  The closure to call when the image is persisted
+	public func persistImage(forURLString URLString: String, completion: @escaping () -> Void) {
+		persistImages(forURLStrings: [URLString]) { 
+			completion()
+		}
 	}
 	
+	/// Remove the expiration for the images with URLStrings. The images will be persisted and not removed from the database
+	/// without an explict call to deleteImages(forURLStrings:completion:).
+	///
+	/// - parameter forURLString: An array of URL strings for the images to persist
+	/// - parameter completion:  The closure to call when the images are persisted
+	public func persistImages(forURLStrings URLStrings: [String], completion: @escaping () -> Void) {
+		
+		backgroundDatabaseConnection.asyncReadWrite({ transaction in
+			for URLString in URLStrings {
+				if let metadata = transaction.metadata(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? ImageMetadata {
+					transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection)
+				}
+			}
+		}, completionBlock: {() -> Void in
+			
+			self.backgroundAttributesDatabaseConnection.asyncReadWrite({ transaction in
+				for URLString in URLStrings {
+					if let metadata = transaction.metadata(forKey: URLString, inCollection: YapImageManagerImageAttributesCollection) as? ImageMetadata {
+						transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: URLString, inCollection: YapImageManagerImageAttributesCollection)
+					}
+				}
+			}, completionBlock: {() -> Void in
+				completion()
+			})
+		})
+	}
+
 	/// Delete the image with URLString.
 	///
-	/// - parameter forURLString: The URL string for the image
+	/// - parameter forURLString: The URL string for the image to delete
+	/// - parameter completion:  The closure to call when the image is deleted
 	public func deleteImage(forURLString URLString: String, completion: @escaping () -> Void) {
+		deleteImages(forURLStrings: [URLString]) { 
+			completion()
+		}
+	}
+	
+	/// Delete images with URLStrings.
+	///
+	/// - parameter forURLStrings: An array of URL strings for the images to delete
+	/// - parameter completion:  The closure to call when the images are deleted
+	public func deleteImages(forURLStrings URLStrings: [String], completion: @escaping () -> Void) {
 		
 		self.backgroundDatabaseConnection.asyncReadWrite({ transaction  in
-			// remove image
-			transaction.removeObject(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection)
+			// remove images
+			for URLString in URLStrings {
+				transaction.removeObject(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection)
+			}
 		}, completionBlock: {() -> Void in
 			// remove image attributes
 			self.backgroundAttributesDatabaseConnection.asyncReadWrite( { transaction in
-				transaction.removeObject(forKey: URLString, inCollection: YapImageManagerImageAttributesCollection)
+				transaction.removeObjects(forKeys: URLStrings, inCollection: YapImageManagerImageAttributesCollection)
 			}, completionBlock: {() -> Void in
 				completion()
 			})
