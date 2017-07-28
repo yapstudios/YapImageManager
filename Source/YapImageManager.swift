@@ -42,25 +42,41 @@ public let YapImageManagerImageAttributesCollection: String = "image_attributes"
 public struct YapImageManagerConfiguration {
 	
 	/// The name of the image database, excluding the path
-	var databaseName: String
+	public var databaseName: String
 	/// The name of the image attributes database, excluding the path
-	var attributesDatabaseName: String
+	public var attributesDatabaseName: String
 	/// Time to expire image and remove from the database, in seconds
-	var expireImagesAfter: TimeInterval
+	public var expireImagesAfter: TimeInterval
 	/// Time to expire image attributes and remove from the database, in seconds. This should be >= expireImageAfter
-	var expireImageAttributesAfter: TimeInterval
+	public var expireImageAttributesAfter: TimeInterval
 	/// When decoding images, if no size is specified decode up to max/width height
-	var maxDecodeWidthHeight: Float
+	public var maxDecodeWidthHeight: Float
 	/// When saving images to database, reduce the file size for any image greater than specified max width/height. Note: re-encoding to JPG is an expensive operation, so use a max width/height to limit conversions
-	var maxSaveToDatabaseWidthHeight: Float
+	public var maxSaveToDatabaseWidthHeight: Float
 	/// When maxSaveToDatabaseWidthHeight is exceeded, resize to specified max width/height, preserving aspect ratio
-	var widthToResizeIfDatabaseMaxWidthHeightExceeded: Float
+	public var widthToResizeIfDatabaseMaxWidthHeightExceeded: Float
 	/// The number of simultaneous image requests
-	var maxSimultaneousImageRequests: Int
+	public var maxSimultaneousImageRequests: Int
 	/// Timeout interval for image downloads
-	var timeoutIntervalForRequest: TimeInterval
+	public var timeoutIntervalForRequest: TimeInterval
 	/// An array of acceptable image content types, for example ["image/jpeg", "image/jpg", ...]
-	var acceptableContentTypes: [String]
+	public var acceptableContentTypes: [String]
+	/// Automatically removes expired images at startup. If false, be sure to call 'removeExpiredImages()' directly.
+	public var removeExpiredImagesAtStartup: Bool
+	
+	public init(databaseName: String, attributesDatabaseName: String, expireImagesAfter: TimeInterval, expireImageAttributesAfter: TimeInterval, maxDecodeWidthHeight: Float, maxSaveToDatabaseWidthHeight: Float, widthToResizeIfDatabaseMaxWidthHeightExceeded: Float, maxSimultaneousImageRequests: Int, timeoutIntervalForRequest: TimeInterval, acceptableContentTypes: [String], removeExpiredImagesAtStartup: Bool) {
+		self.databaseName = databaseName
+		self.attributesDatabaseName = attributesDatabaseName
+		self.expireImagesAfter = expireImagesAfter
+		self.expireImageAttributesAfter = expireImageAttributesAfter
+		self.maxDecodeWidthHeight = maxDecodeWidthHeight
+		self.maxSaveToDatabaseWidthHeight = maxSaveToDatabaseWidthHeight
+		self.widthToResizeIfDatabaseMaxWidthHeightExceeded = widthToResizeIfDatabaseMaxWidthHeightExceeded
+		self.maxSimultaneousImageRequests = maxSimultaneousImageRequests
+		self.timeoutIntervalForRequest = timeoutIntervalForRequest
+		self.acceptableContentTypes = acceptableContentTypes
+		self.removeExpiredImagesAtStartup = removeExpiredImagesAtStartup
+	}
 }
 
 /// A unique ticket for an image request, used to cancel request
@@ -211,7 +227,8 @@ public class YapImageManager {
 			widthToResizeIfDatabaseMaxWidthHeightExceeded: 1024.0,
 			maxSimultaneousImageRequests: 4,
 			timeoutIntervalForRequest: 30.0,
-			acceptableContentTypes: ["image/tiff", "image/jpeg", "image/jpg", "image/gif", "image/png", "image/ico", "image/x-icon", "image/bmp", "image/x-bmp", "image/x-xbitmap", "image/x-win-bitmap"]
+			acceptableContentTypes: ["image/tiff", "image/jpeg", "image/jpg", "image/gif", "image/png", "image/ico", "image/x-icon", "image/bmp", "image/x-bmp", "image/x-xbitmap", "image/x-win-bitmap"],
+			removeExpiredImagesAtStartup: true
 		)
 		return configuration
 	}
@@ -221,7 +238,7 @@ public class YapImageManager {
 	/// - parameter configuration: 'YapImageManagerConfiguration' used to create the instance
 	///
 	/// - returns: The new 'YapImageManager' instance.
-	init(configuration: YapImageManagerConfiguration = YapImageManager.defaultConfiguration()) {
+	public init(configuration: YapImageManagerConfiguration = YapImageManager.defaultConfiguration()) {
 		
 		func databasePath(withName name: String) -> String {
 			let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
@@ -275,8 +292,14 @@ public class YapImageManager {
 		attributesCache = NSCache()
 		attributesCache?.countLimit = 1000
 		imagesCache = NSCache()
-		removeExpiredImages()
-		vacuumDatabaseIfNeeded()
+		
+		if configuration.removeExpiredImagesAtStartup {
+			removeExpiredImages() {
+				self.vacuumDatabaseIfNeeded()
+			}
+		} else {
+			self.vacuumDatabaseIfNeeded()
+		}
 		
 		isReachable = true
 		reachabilityManager?.listener = { [weak self] reachable in
@@ -582,7 +605,8 @@ public class YapImageManager {
 		
 		backgroundDatabaseConnection.asyncReadWrite({ transaction in
 			for URLString in URLStrings {
-				if let metadata = transaction.metadata(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? ImageMetadata {
+				if let metadata = transaction.metadata(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? ImageMetadata, metadata.expires != nil {
+					print("PERSIST \(URLString)")
 					transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection)
 				}
 			}
@@ -590,7 +614,7 @@ public class YapImageManager {
 			
 			self.backgroundAttributesDatabaseConnection.asyncReadWrite({ transaction in
 				for URLString in URLStrings {
-					if let metadata = transaction.metadata(forKey: URLString, inCollection: YapImageManagerImageAttributesCollection) as? ImageMetadata {
+					if let metadata = transaction.metadata(forKey: URLString, inCollection: YapImageManagerImageAttributesCollection) as? ImageMetadata, metadata.expires != nil {
 						transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: URLString, inCollection: YapImageManagerImageAttributesCollection)
 					}
 				}
@@ -1016,7 +1040,7 @@ public class YapImageManager {
 	
 	// MARK: Database cleanup
 	
-	private func vacuumDatabaseIfNeeded() {
+	public func vacuumDatabaseIfNeeded() {
 		
 		if backgroundDatabaseConnection.pragmaAutoVacuum() == "NONE" {
 			// We don't vacuum right away.
@@ -1030,7 +1054,7 @@ public class YapImageManager {
 		}
 	}
 	
-	private func removeExpiredImages() {
+	public func removeExpiredImages(completion: @escaping () -> Void) {
 		DispatchQueue.main.async(execute: {() -> Void in
 			
 			// fetch the expired images
@@ -1070,6 +1094,7 @@ public class YapImageManager {
 				self.backgroundAttributesDatabaseConnection.asyncReadWrite( { transaction in
 					transaction.removeObjects(forKeys: imageAttributeDeleteKeys, inCollection: YapImageManagerImageAttributesCollection)
 				}, completionBlock: {() -> Void in
+					completion()
 					// DEBUG
 					//[self validateDatabaseIntegrity];
 				})
