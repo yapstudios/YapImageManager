@@ -606,7 +606,6 @@ public class YapImageManager {
 		backgroundDatabaseConnection.asyncReadWrite({ transaction in
 			for URLString in URLStrings {
 				if let metadata = transaction.metadata(forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection) as? ImageMetadata, metadata.expires != nil {
-					print("PERSIST \(URLString)")
 					transaction.replaceMetadata(ImageMetadata(created: metadata.created), forKey: self.keyForImage(withURLString: URLString), inCollection: YapImageManagerImageCollection)
 				}
 			}
@@ -665,6 +664,9 @@ public class YapImageManager {
 			queuedRequests.remove(at: index)
 			queuedRequests.append(foundItem)
 			DDLogVerbose("Requested image is already queued; increasing priority \(URLString)")
+		} else if let foundItem = activeImageRequest(forURLString: URLString) {
+			foundItem.responses.append(response)
+			DDLogVerbose("Requested image is already downloading; adding response handler \(URLString)")
 		} else {
 			let request = ImageRequest()
 			request.URLString = URLString
@@ -678,8 +680,10 @@ public class YapImageManager {
 	private func isImageQueued(forURLString URLString: String) -> Bool {
 		
 		// NOTE: Active imageRequests remain on downloadQueue, so it's only necessary to check downloadQueue
-		let foundItem: ImageRequest? = queuedImageRequest(forURLString: URLString)
-		return (foundItem != nil)
+		if queuedImageRequest(forURLString: URLString) != nil || activeImageRequest(forURLString: URLString) != nil {
+			return true
+		}
+		return false
 	}
 	
 	private func queuedImageRequest(forURLString URLString: String) -> ImageRequest? {
@@ -695,14 +699,11 @@ public class YapImageManager {
 		}
 	}
 	
-	private func nextImageRequest() -> ImageRequest? {
+	private func dequeueRequest() -> ImageRequest? {
 		
 		if let nextRequest = queuedRequests.last {
-			if let _ = activeImageRequest(forURLString: nextRequest.URLString) {
-				// skip
-			} else {
-				return nextRequest
-			}
+			queuedRequests.removeLast()
+			return nextRequest
 		}
 		return nil
 	}
@@ -719,12 +720,10 @@ public class YapImageManager {
 	}
 	
 	private func processImageQueue() {
-		
-		guard isReadyForRequest()  else { return }
-		
+
 		// process image
-		if !queuedRequests.isEmpty {
-			if let imageRequest = nextImageRequest() {
+		while !queuedRequests.isEmpty && isReadyForRequest() {
+			if let imageRequest = dequeueRequest() {
 				activeRequests.append(imageRequest)
 				// start image download
 				downloadImage(forRequest: imageRequest)
@@ -799,7 +798,6 @@ public class YapImageManager {
 							// dispatch next request on main thread
 							DispatchQueue.main.async(execute: {() -> Void in
 								// remove queue item
-								self.removeQueuedImageRequest(forURLString: imageRequest.URLString)
 								imageRequest.progress = nil
 								self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
 								if let imageData = imageData {
@@ -831,7 +829,6 @@ public class YapImageManager {
 					}
 				case .failure(let error):
 					// remove queue item
-					self.removeQueuedImageRequest(forURLString: imageRequest.URLString)
 					imageRequest.progress = nil
 					self.activeRequests.remove(at: self.activeRequests.index(of: imageRequest)!)
 					
