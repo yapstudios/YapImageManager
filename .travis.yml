@@ -9,6 +9,6 @@ before_install:
 before_script:
   - export LANG=en_US.UTF-8
 script:
-  - pod update
+  - pod repo update
+  - pod install
   - xcodebuild -workspace YapImageManagerExample.xcworkspace -scheme YapImageManagerExample -sdk iphoneos10.3 -configuration Debug build | xcpretty;
-
