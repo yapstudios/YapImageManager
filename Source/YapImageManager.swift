@@ -555,6 +555,11 @@ public class YapImageManager {
 	public func saveImage(forURLString URLString: String, image: UIImage, encodeType: ImageEncodeType = .JPEG, completion: @escaping (Bool) -> Void) {
 		
 		self.imageDecodeQueue.async(execute: {() -> Void in
+			// rotate the image to an up orientation if needed
+			guard let image = self.imageWithUpOrientation(for: image) else { 
+				completion(false) 
+				return
+			}
 			
 			var imageData: Data? = nil
 			let scale: CGFloat = UIScreen.main.scale
@@ -948,6 +953,72 @@ public class YapImageManager {
 			}
 		}
 		return maxSize
+	}
+	
+	// MARK: - Image Helpers
+	
+	func imageWithUpOrientation(for image: UIImage) -> UIImage? {
+		guard image.imageOrientation != .up else { return image }
+		guard 
+			let cgImage = image.cgImage,
+			let colorSpace = cgImage.colorSpace
+			else {
+				return nil
+		}
+		
+		let width = image.size.width
+		let height = image.size.height
+		
+		var transform = CGAffineTransform.identity
+		
+		switch image.imageOrientation {
+		case .down, .downMirrored:
+			transform = transform.translatedBy(x: width, y: height)
+			transform = transform.rotated(by: .pi)
+			
+		case .left, .leftMirrored:
+			transform = transform.translatedBy(x: width, y: 0)
+			transform = transform.rotated(by: .pi * 0.5)
+			
+		case .right, .rightMirrored:
+			transform = transform.translatedBy(x: 0, y: height)
+			transform = transform.rotated(by: .pi * -0.5)
+			
+		case .up, .upMirrored:
+			break
+		}
+		
+		switch image.imageOrientation {
+		case .upMirrored, .downMirrored:
+			transform = transform.translatedBy(x: width, y: 0)
+			transform = transform.scaledBy(x: -1, y: 1)
+			
+		case .leftMirrored, .rightMirrored:
+			transform = transform.translatedBy(x: height, y: 0)
+			transform = transform.scaledBy(x: -1, y: 1)
+			
+		default:
+			break
+		}
+		
+		guard let context = CGContext(data: nil, width: Int(width), height: Int(height), bitsPerComponent: cgImage.bitsPerComponent, bytesPerRow: 0, space: colorSpace, bitmapInfo: cgImage.bitmapInfo.rawValue) else { 
+			return nil
+		}
+		
+		context.concatenate(transform)
+		
+		switch image.imageOrientation {
+		case .left, .leftMirrored, .right, .rightMirrored:
+			context.draw(cgImage, in: CGRect(x: 0, y: 0, width: height, height: width))
+		default:
+			context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+		}
+		
+		guard let computedImage = context.makeImage() else {
+			return nil
+		}
+		
+		return UIImage(cgImage: computedImage)
 	}
 	
 	// MARK: - Image attributes
