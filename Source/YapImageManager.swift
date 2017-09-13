@@ -877,7 +877,7 @@ public class YapImageManager {
 	/// Returns a unique key for the image request, with a hash of the url, size, and all image filters
 	func keyForImage(withURLString URLString: String?, size: CGSize? = nil, filters: [YapImageFilter]? = nil) -> String {
 		var key = String()
-		key += String(format: "\(URLString ?? "<na>")_%0.5f_%0.5f", size?.width ?? 0.0, size?.height ?? 0.0)
+		key += String(format: "%@_%0.5f_%0.5f", URLString ?? "<na>", size?.width ?? 0.0, size?.height ?? 0.0)
 		
 		if let filters = filters {
 			for filter in filters {
