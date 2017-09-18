@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "YapImageManager"
-  s.version      = "1.0.7"
+  s.version      = "1.0.8"
   s.summary      = "Yap Studios Image Manager Framework"
   s.homepage     = "http://yapstudios.com/"
   s.license      = 'BSD'
@@ -20,8 +20,8 @@ Pod::Spec.new do |s|
   s.source_files = 'Source/**/*.{swift,h,m}'
   s.exclude_files = 'Source/YapImageSessionManager.swift'
   
-  s.dependency 'Alamofire', '~> 4.4.0'
-  s.dependency 'CocoaLumberjack/Swift', '~> 3.1.0'
-  s.dependency 'YapDatabase', '~> 3.0.1'
+  s.dependency 'Alamofire', '~> 4.4'
+  s.dependency 'CocoaLumberjack/Swift', '~> 3.1'
+  s.dependency 'YapDatabase', '~> 3.0'
   
 end

@@ -8,6 +8,6 @@ target 'YapImageManagerExample' do
 
 # normal pods (read-only)
   pod 'YapImageManager', :path => './'
-	pod 'Alamofire', '4.4.0'
-	pod 'CocoaLumberjack/Swift', '3.1.0'
+	pod 'Alamofire', '4.5.1'
+	pod 'CocoaLumberjack/Swift', '3.2.1'
 end
