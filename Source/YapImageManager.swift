@@ -259,7 +259,7 @@ public class YapImageManager {
 		let options = YapDatabaseOptions()
 		options.pragmaPageSize = 32768
 		options.aggressiveWALTruncationSize = 1024 * 1024 * 100
-		database = YapDatabase(path: databasePath(withName:configuration.databaseName), objectSerializer: nil, objectDeserializer: nil, metadataSerializer: nil, metadataDeserializer: nil, objectPreSanitizer: nil, objectPostSanitizer: nil, metadataPreSanitizer: nil, metadataPostSanitizer: nil, options: options)
+        database = YapDatabase(path: databasePath(withName:configuration.databaseName), objectSerializer: nil, objectDeserializer: nil, metadataSerializer: nil, metadataDeserializer: nil, objectPreSanitizer: nil, objectPostSanitizer: nil, metadataPreSanitizer: nil, metadataPostSanitizer: nil, options: options)!
 		
 		databaseConnection = database.newConnection()
 		databaseConnection.objectCacheEnabled = false
@@ -273,7 +273,7 @@ public class YapImageManager {
 		backgroundDatabaseConnection.objectPolicy = .share
 		backgroundDatabaseConnection.metadataPolicy = .share
 		
-		attributesDatabase = YapDatabase(path: databasePath(withName: configuration.attributesDatabaseName))
+        attributesDatabase = YapDatabase(path: databasePath(withName: configuration.attributesDatabaseName))!
 		attributesDatabaseConnection = attributesDatabase.newConnection()
 		attributesDatabaseConnection.objectCacheEnabled = false
 		attributesDatabaseConnection.metadataCacheEnabled = false
